@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Edit2, X, Plus, Trash2, Package } from 'lucide-react'
+import { Edit2, X, Plus, Trash2, Package, ImageIcon } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { EmptyState } from '../components/EmptyState.jsx'
 import { Toast } from '../components/Toast.jsx'
@@ -99,6 +99,38 @@ function MMInput({ value, onChange }) {
   )
 }
 
+// ── Campo de imagem (URL ou arquivo local) ───────────────────────────────────
+
+function ImageInput({ value, onChange }) {
+  function handleFile(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => onChange(ev.target.result)
+    reader.readAsDataURL(file)
+  }
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <input
+          className="input flex-1"
+          value={value || ''}
+          onChange={e => onChange(e.target.value)}
+          placeholder="Cole uma URL ou escolha um arquivo..."
+        />
+        <label className="btn-secondary cursor-pointer flex items-center gap-1.5 shrink-0 px-3">
+          <ImageIcon size={14} />
+          Escolher
+          <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
+        </label>
+      </div>
+      {value && (
+        <img src={value} alt="preview" className="h-20 object-contain rounded-lg bg-zinc-800 p-1 border border-zinc-700" />
+      )}
+    </div>
+  )
+}
+
 // ── ProductForm ──────────────────────────────────────────────────────────────
 
 const EMPTY_PRODUCT = {
@@ -171,8 +203,8 @@ function ProductForm({ initial = {}, onSave, onCancel }) {
             onChange={e => set('estoque', parseInt(e.target.value) || 0)} />
         </div>
         <div className="sm:col-span-2">
-          <label className="label">Imagem (URL)</label>
-          {txt('imagem', 'https://...')}
+          <label className="label">Imagem</label>
+          <ImageInput value={form.imagem} onChange={v => set('imagem', v)} />
         </div>
         <div className="sm:col-span-2">
           <label className="label">Extras / Observações</label>
@@ -286,7 +318,13 @@ export function ProductsPage() {
               ) : (
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-zinc-100">{prod.tipo} {prod.modelo}</h3>
+                    <div className="flex items-start gap-3">
+                      {prod.imagem && (
+                        <img src={prod.imagem} alt={prod.tipo}
+                          className="w-14 h-14 object-contain rounded-lg bg-zinc-800 p-1 border border-zinc-700 shrink-0" />
+                      )}
+                      <h3 className="font-semibold text-zinc-100 pt-1">{prod.tipo} {prod.modelo}</h3>
+                    </div>
                     <div className="flex gap-1.5 shrink-0">
                       <button className="btn-ghost btn-sm" onClick={() => setEditing(prod)}><Edit2 size={13} /></button>
                       <button className="btn-danger btn-sm" onClick={() => handleDelete(prod)}><Trash2 size={13} /></button>

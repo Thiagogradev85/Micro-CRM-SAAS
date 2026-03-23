@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   Plus, Edit2, Trash2, BookOpen, Package,
   ChevronDown, ChevronRight, FileUp, Loader2, X,
-  Link, MinusCircle, FileText,
+  Link, MinusCircle, FileText, ImageIcon,
 } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { EmptyState } from '../components/EmptyState.jsx'
@@ -154,6 +154,38 @@ function MMInput({ value, onChange }) {
   )
 }
 
+// ── Campo de imagem (URL ou arquivo local) ───────────────────────────────────
+
+function ImageInput({ value, onChange }) {
+  function handleFile(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => onChange(ev.target.result)
+    reader.readAsDataURL(file)
+  }
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <input
+          className="input flex-1"
+          value={value || ''}
+          onChange={e => onChange(e.target.value)}
+          placeholder="Cole uma URL ou escolha um arquivo..."
+        />
+        <label className="btn-secondary cursor-pointer flex items-center gap-1.5 shrink-0 px-3">
+          <ImageIcon size={14} />
+          Escolher
+          <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
+        </label>
+      </div>
+      {value && (
+        <img src={value} alt="preview" className="h-20 object-contain rounded-lg bg-zinc-800 p-1 border border-zinc-700" />
+      )}
+    </div>
+  )
+}
+
 // ── ProductForm ─────────────────────────────────────────────────────────────
 
 const EMPTY_PRODUCT = {
@@ -226,8 +258,8 @@ function ProductForm({ initial = {}, onSave, onCancel }) {
             onChange={e => set('estoque', parseInt(e.target.value) || 0)} />
         </div>
         <div className="sm:col-span-2">
-          <label className="label">Imagem (URL)</label>
-          {txt('imagem', 'https://...')}
+          <label className="label">Imagem</label>
+          <ImageInput value={form.imagem} onChange={v => set('imagem', v)} />
         </div>
         <div className="sm:col-span-2">
           <label className="label">Extras / Observações</label>
@@ -251,9 +283,15 @@ function ProductRow({ prod, catId, onEdit, onDelete, onStockChange, onUnlink }) 
   return (
     <div className="border border-zinc-800 rounded-lg p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="font-medium text-zinc-100 text-sm">{prod.tipo} {prod.modelo}</p>
-          {prod.bateria && <p className="text-xs text-zinc-500">{prod.bateria} · {prod.motor}</p>}
+        <div className="flex items-start gap-2">
+          {prod.imagem && (
+            <img src={prod.imagem} alt={prod.tipo}
+              className="w-12 h-12 object-contain rounded-lg bg-zinc-800 p-1 border border-zinc-700 shrink-0" />
+          )}
+          <div>
+            <p className="font-medium text-zinc-100 text-sm">{prod.tipo} {prod.modelo}</p>
+            {prod.bateria && <p className="text-xs text-zinc-500">{prod.bateria} · {prod.motor}</p>}
+          </div>
         </div>
         <div className="flex gap-1 shrink-0">
           <button className="btn-ghost btn-sm" onClick={() => onEdit(prod)} title="Editar">
