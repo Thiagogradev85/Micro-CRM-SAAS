@@ -16,11 +16,16 @@ router.delete('/:id', CatalogController.delete)
 router.post('/:id/import-pdf', upload.single('file'), CatalogController.importPdf)
 
 // Produtos do catálogo
-router.get('/:id/products',                 CatalogController.listProducts)
-router.post('/:id/products',               CatalogController.createProduct)
-router.get('/:id/products/:prodId',        CatalogController.getProduct)
-router.put('/:id/products/:prodId',        CatalogController.updateProduct)
-router.patch('/:id/products/:prodId/stock',CatalogController.updateStock)
-router.delete('/:id/products/:prodId',     CatalogController.deleteProduct)
+router.get('/:id/products',                          CatalogController.listProducts)
+router.post('/:id/products',                         CatalogController.createProduct)
+router.post('/:id/products/link',                    CatalogController.addProduct)
+router.get('/:id/products/:prodId',                  CatalogController.getProduct)
+router.put('/:id/products/:prodId',                  CatalogController.updateProduct)
+router.patch('/:id/products/:prodId/stock',          CatalogController.updateStock)
+router.delete('/:id/products/:prodId',               CatalogController.deleteProduct)
+router.delete('/:id/products/:prodId/unlink',        CatalogController.removeProduct)
+
+// Catalog PDF
+router.get('/:id/pdf',                               CatalogController.catalogPdf)
 
 export default router

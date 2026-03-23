@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar.jsx'
 import { ClientsPage }      from './pages/ClientsPage.jsx'
 import { ClientDetailPage } from './pages/ClientDetailPage.jsx'
 import { CatalogPage }      from './pages/CatalogPage.jsx'
+import { ProductsPage }     from './pages/ProductsPage.jsx'
 import { SellersPage }      from './pages/SellersPage.jsx'
 import { DailyReportPage }  from './pages/DailyReportPage.jsx'
 
@@ -16,6 +17,7 @@ export default function App() {
             <Route path="/" element={<Navigate to="/clients" replace />} />
             <Route path="/clients"     element={<ClientsPage />} />
             <Route path="/clients/:id" element={<ClientDetailPage />} />
+            <Route path="/products"    element={<ProductsPage />} />
             <Route path="/catalogs"    element={<CatalogPage />} />
             <Route path="/sellers"     element={<SellersPage />} />
             <Route path="/daily-report" element={<DailyReportPage />} />

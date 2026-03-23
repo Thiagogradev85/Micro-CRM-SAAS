@@ -6,6 +6,7 @@ import statusRoutes      from './routes/status.js'
 import sellerRoutes      from './routes/sellers.js'
 import clientRoutes      from './routes/clients.js'
 import catalogRoutes     from './routes/catalogs.js'
+import productRoutes     from './routes/products.js'
 import dailyReportRoutes from './routes/dailyReport.js'
 import { AppError }      from './utils/AppError.js'
 import db                from './db/db.js'
@@ -56,6 +57,7 @@ app.use('/status',       statusRoutes)
 app.use('/sellers',      sellerRoutes)
 app.use('/clients',      clientRoutes)
 app.use('/catalogs',     catalogRoutes)
+app.use('/products',     productRoutes)
 app.use('/daily-report', dailyReportRoutes)
 
 // ── Health check ───────────────────────────────────

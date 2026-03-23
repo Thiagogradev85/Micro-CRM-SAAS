@@ -1,11 +1,12 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-  Users, BookOpen, BarChart2, UserCheck, X, Menu
+  Users, BookOpen, BarChart2, UserCheck, X, Menu, Package
 } from 'lucide-react'
 import { useState } from 'react'
 
 const links = [
   { to: '/clients',      icon: Users,      label: 'Clientes'        },
+  { to: '/products',     icon: Package,    label: 'Produtos'        },
   { to: '/catalogs',     icon: BookOpen,   label: 'Catálogos'       },
   { to: '/sellers',      icon: UserCheck,  label: 'Vendedores'      },
   { to: '/daily-report', icon: BarChart2,  label: 'Relatório Diário'},

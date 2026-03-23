@@ -71,10 +71,42 @@ export const CatalogController = {
 
   async createProduct(req, res) {
     try {
-      res.status(201).json(await ProductModel.create(req.params.id, req.body))
+      const product = await ProductModel.create(null, req.body)
+      await ProductModel.linkToCatalog(req.params.id, product.id)
+      res.status(201).json(product)
     } catch (err) {
       res.status(500).json({ error: err.message })
     }
+  },
+
+  async addProduct(req, res) {
+    try {
+      const { product_id } = req.body
+      const product = await ProductModel.get(product_id)
+      if (!product) return res.status(404).json({ error: 'Produto não encontrado' })
+      await ProductModel.linkToCatalog(req.params.id, product_id)
+      res.json(product)
+    } catch (err) { res.status(500).json({ error: err.message }) }
+  },
+
+  async removeProduct(req, res) {
+    try {
+      await ProductModel.unlinkFromCatalog(req.params.id, req.params.prodId)
+      res.status(204).end()
+    } catch (err) { res.status(500).json({ error: err.message }) }
+  },
+
+  async catalogPdf(req, res) {
+    try {
+      const catalog = await CatalogModel.get(req.params.id)
+      if (!catalog) return res.status(404).json({ error: 'Catálogo não encontrado' })
+      const products = await ProductModel.listByCatalog(req.params.id)
+      const { generateCatalogPdf } = await import('../modules/file-export/index.js')
+      const pdfBuffer = await generateCatalogPdf({ catalog, products })
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', `attachment; filename="catalogo-${catalog.nome.replace(/\s+/g, '-')}.pdf"`)
+      res.send(pdfBuffer)
+    } catch (err) { res.status(500).json({ error: err.message }) }
   },
 
   async updateProduct(req, res) {
@@ -123,7 +155,7 @@ export const CatalogController = {
 
       const created = []
       for (const p of products) {
-        const product = await ProductModel.create(req.params.id, {
+        const product = await ProductModel.create(null, {
           tipo:             p.tipo             || null,
           modelo:           p.modelo           || null,
           motor:            p.motor            || null,
@@ -143,6 +175,7 @@ export const CatalogController = {
           imagem:           null,
           extra:            p.extra            || null,
         })
+        await ProductModel.linkToCatalog(req.params.id, product.id)
         created.push(product)
       }
 

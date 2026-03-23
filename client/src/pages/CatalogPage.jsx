@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   Plus, Edit2, Trash2, BookOpen, Package,
   ChevronDown, ChevronRight, FileUp, Loader2, X,
+  Link, MinusCircle, FileText,
 } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { EmptyState } from '../components/EmptyState.jsx'
@@ -246,7 +247,7 @@ function ProductForm({ initial = {}, onSave, onCancel }) {
 
 // ── ProductRow ──────────────────────────────────────────────────────────────
 
-function ProductRow({ prod, catId, onEdit, onDelete, onStockChange }) {
+function ProductRow({ prod, catId, onEdit, onDelete, onStockChange, onUnlink }) {
   return (
     <div className="border border-zinc-800 rounded-lg p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
@@ -258,7 +259,10 @@ function ProductRow({ prod, catId, onEdit, onDelete, onStockChange }) {
           <button className="btn-ghost btn-sm" onClick={() => onEdit(prod)} title="Editar">
             <Edit2 size={12} />
           </button>
-          <button className="btn-danger btn-sm" onClick={() => onDelete(prod)} title="Excluir">
+          <button className="btn-ghost btn-sm text-orange-400 hover:text-orange-300" onClick={() => onUnlink(prod)} title="Remover do catálogo">
+            <MinusCircle size={12} />
+          </button>
+          <button className="btn-danger btn-sm" onClick={() => onDelete(prod)} title="Excluir produto">
             <Trash2 size={12} />
           </button>
         </div>
@@ -293,6 +297,45 @@ function ProductRow({ prod, catId, onEdit, onDelete, onStockChange }) {
   )
 }
 
+// ── AddExistingModal ─────────────────────────────────────────────────────────
+
+function AddExistingModal({ catId, onClose, onAdd }) {
+  const [all, setAll] = useState([])
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.listAllProducts().then(setAll).finally(() => setLoading(false))
+  }, [])
+
+  const filtered = all.filter(p =>
+    `${p.tipo} ${p.modelo}`.toLowerCase().includes(search.toLowerCase())
+  )
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-md p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-zinc-100">Adicionar Produto Existente</h3>
+          <button className="btn-ghost btn-sm" onClick={onClose}><X size={14} /></button>
+        </div>
+        <input className="input" placeholder="Buscar produto..." value={search} onChange={e => setSearch(e.target.value)} autoFocus />
+        <div className="space-y-1 max-h-72 overflow-y-auto">
+          {loading && <p className="text-zinc-500 text-sm text-center py-4">Carregando...</p>}
+          {!loading && filtered.length === 0 && <p className="text-zinc-500 text-sm text-center py-4">Nenhum produto encontrado</p>}
+          {filtered.map(p => (
+            <button key={p.id} onClick={() => onAdd(p)}
+              className="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-800 transition-colors">
+              <p className="text-zinc-100 text-sm font-medium">{p.tipo} {p.modelo}</p>
+              {p.preco && <p className="text-zinc-500 text-xs">R$ {Number(p.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── CatalogPage ─────────────────────────────────────────────────────────────
 
 export function CatalogPage() {
@@ -309,6 +352,7 @@ export function CatalogPage() {
   const [loadingProds, setLoadingProds] = useState(null)
   const [showProductForm, setShowProductForm] = useState(null) // catId
   const [editingProduct, setEditingProduct]   = useState(null)
+  const [addExistingFor, setAddExistingFor]   = useState(null) // catId
 
   const showToast = (message, type = 'success') => setToast({ message, type })
 
@@ -432,11 +476,40 @@ export function CatalogPage() {
     } catch (err) { showToast(err.message, 'error') }
   }
 
+  async function handleUnlinkProduct(catId, prod) {
+    if (!confirm('Remover produto do catálogo? O produto não será excluído.')) return
+    try {
+      await api.unlinkProductFromCatalog(catId, prod.id)
+      showToast('Produto removido do catálogo.')
+      await loadProducts(catId)
+      loadCatalogs()
+    } catch (err) { showToast(err.message, 'error') }
+  }
+
+  async function handleAddExisting(catId, prod) {
+    try {
+      await api.linkProductToCatalog(catId, prod.id)
+      setAddExistingFor(null)
+      showToast(`"${prod.tipo} ${prod.modelo}" adicionado ao catálogo!`)
+      await loadProducts(catId)
+      loadCatalogs()
+    } catch (err) { showToast(err.message, 'error') }
+  }
+
   // ── Render ──────────────────────────────────────────────
 
   return (
     <div className="p-4 md:p-6 space-y-4">
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+
+      {/* Add existing product modal */}
+      {addExistingFor && (
+        <AddExistingModal
+          catId={addExistingFor}
+          onClose={() => setAddExistingFor(null)}
+          onAdd={(prod) => handleAddExisting(addExistingFor, prod)}
+        />
+      )}
 
       {/* PDF processing overlay */}
       {importingPdf && (
@@ -522,6 +595,16 @@ export function CatalogPage() {
                           disabled={!!importingPdf} />
                       </label>
 
+                      {/* Export PDF */}
+                      <button
+                        className="btn-secondary btn-sm flex items-center gap-1"
+                        title="Gerar PDF do catálogo"
+                        onClick={() => api.downloadCatalogPdf(cat.id)}
+                      >
+                        <FileText size={13} />
+                        Gerar PDF
+                      </button>
+
                       <button className="btn-ghost btn-sm" onClick={() => setEditingCatalog(cat)} title="Editar catálogo">
                         <Edit2 size={13} />
                       </button>
@@ -536,15 +619,24 @@ export function CatalogPage() {
                 {isOpen && (
                   <div className="border-t border-zinc-800 bg-zinc-950/40 p-4 space-y-3">
                     {/* Products header */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
                       <h4 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
                         <Package size={14} /> Produtos
                       </h4>
-                      {showProductForm !== cat.id && (
-                        <button className="btn-primary btn-sm" onClick={() => { setShowProductForm(cat.id); setEditingProduct(null) }}>
-                          <Plus size={13} /> Novo Produto
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          className="btn-secondary btn-sm flex items-center gap-1"
+                          onClick={() => { setAddExistingFor(cat.id); setShowProductForm(null) }}
+                          title="Adicionar produto existente ao catálogo"
+                        >
+                          <Link size={13} /> Adicionar Existente
                         </button>
-                      )}
+                        {showProductForm !== cat.id && (
+                          <button className="btn-primary btn-sm" onClick={() => { setShowProductForm(cat.id); setEditingProduct(null) }}>
+                            <Plus size={13} /> Novo Produto
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* New product form */}
@@ -598,6 +690,7 @@ export function CatalogPage() {
                               onEdit={(p) => setEditingProduct({ ...p, catId: cat.id })}
                               onDelete={(p) => handleDeleteProduct(cat.id, p)}
                               onStockChange={(p, v) => handleUpdateStock(cat.id, p, v)}
+                              onUnlink={(p) => handleUnlinkProduct(cat.id, p)}
                             />
                           )
                         ))}

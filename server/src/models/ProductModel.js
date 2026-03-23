@@ -9,12 +9,36 @@ function cleanNum(v) {
 }
 
 export const ProductModel = {
+  async list() {
+    const { rows } = await db.query(
+      'SELECT * FROM products ORDER BY tipo ASC, modelo ASC'
+    )
+    return rows
+  },
+
   async listByCatalog(catalog_id) {
     const { rows } = await db.query(
-      'SELECT * FROM products WHERE catalog_id = $1 ORDER BY tipo ASC, modelo ASC',
+      `SELECT p.* FROM products p
+       JOIN catalog_products cp ON cp.product_id = p.id
+       WHERE cp.catalog_id = $1
+       ORDER BY p.tipo ASC, p.modelo ASC`,
       [catalog_id]
     )
     return rows
+  },
+
+  async linkToCatalog(catalog_id, product_id) {
+    await db.query(
+      'INSERT INTO catalog_products (catalog_id, product_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [catalog_id, product_id]
+    )
+  },
+
+  async unlinkFromCatalog(catalog_id, product_id) {
+    await db.query(
+      'DELETE FROM catalog_products WHERE catalog_id = $1 AND product_id = $2',
+      [catalog_id, product_id]
+    )
   },
 
   async get(id) {

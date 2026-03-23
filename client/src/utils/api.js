@@ -114,6 +114,17 @@ export const api = {
   updateStock:    (catId, pId, s)=> request('PATCH', `/catalogs/${catId}/products/${pId}/stock`, { estoque: s }),
   deleteProduct:  (catId, pId)   => request('DELETE',`/catalogs/${catId}/products/${pId}`),
 
+  // Global Products
+  listAllProducts:     ()         => request('GET',    '/products'),
+  createProductGlobal: (data)     => request('POST',   '/products', data),
+  updateProductGlobal: (id, d)    => request('PUT',    `/products/${id}`, d),
+  deleteProductGlobal: (id)       => request('DELETE', `/products/${id}`),
+
+  // Catalog-product linking
+  linkProductToCatalog:    (catId, productId) => request('POST',   `/catalogs/${catId}/products/link`, { product_id: productId }),
+  unlinkProductFromCatalog:(catId, prodId)    => request('DELETE', `/catalogs/${catId}/products/${prodId}/unlink`),
+  downloadCatalogPdf:      (catId)            => { window.open(`${BASE}/catalogs/${catId}/pdf`, '_blank') },
+
   // Daily Report
   getReportSummary: (date) => request('GET', `/daily-report/summary?date=${date}`),
   getReportDetails: (date) => request('GET', `/daily-report/details?date=${date}`),
