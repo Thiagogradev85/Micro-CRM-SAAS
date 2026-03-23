@@ -7,6 +7,7 @@ import {
 import { api } from '../utils/api.js'
 import { EmptyState } from '../components/EmptyState.jsx'
 import { Toast } from '../components/Toast.jsx'
+import { ImageLightbox } from '../components/ImageLightbox.jsx'
 
 // ── Catalog date dropdowns ──────────────────────────────────────────────────
 
@@ -280,13 +281,16 @@ function ProductForm({ initial = {}, onSave, onCancel }) {
 // ── ProductRow ──────────────────────────────────────────────────────────────
 
 function ProductRow({ prod, catId, onEdit, onDelete, onStockChange, onUnlink }) {
+  const [lightbox, setLightbox] = useState(null)
   return (
     <div className="border border-zinc-800 rounded-lg p-3 space-y-2">
+      {lightbox && <ImageLightbox src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} />
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2">
           {prod.imagem && (
             <img src={prod.imagem} alt={prod.tipo}
-              className="w-12 h-12 object-contain rounded-lg bg-zinc-800 p-1 border border-zinc-700 shrink-0" />
+              className="w-12 h-12 object-contain rounded-lg bg-zinc-800 p-1 border border-zinc-700 shrink-0 cursor-zoom-in"
+              onClick={() => setLightbox({ src: prod.imagem, alt: `${prod.tipo} ${prod.modelo}` })} />
           )}
           <div>
             <p className="font-medium text-zinc-100 text-sm">{prod.tipo} {prod.modelo}</p>

@@ -5,6 +5,7 @@ import { api } from '../utils/api.js'
 import { formatDate } from '../utils/constants.js'
 import { EmptyState } from '../components/EmptyState.jsx'
 import { Toast } from '../components/Toast.jsx'
+import { ImageLightbox } from '../components/ImageLightbox.jsx'
 
 // ── Máscaras ────────────────────────────────────────────────────────────────
 
@@ -291,6 +292,7 @@ export function ProductDetailPage() {
   const [editing, setEditing]   = useState(null)
   const [loading, setLoading]   = useState(false)
   const [toast, setToast]       = useState(null)
+  const [lightbox, setLightbox] = useState(null)
 
   const showToast = (m, t = 'success') => setToast({ message: m, type: t })
 
@@ -347,6 +349,7 @@ export function ProductDetailPage() {
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-4xl mx-auto">
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+      {lightbox && <ImageLightbox src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} />}
 
       <button className="btn-ghost btn-sm" onClick={() => navigate('/catalogs')}>
         <ArrowLeft size={15} /> Catálogos
@@ -395,7 +398,8 @@ export function ProductDetailPage() {
                     <div className="flex items-start gap-3">
                       {prod.imagem && (
                         <img src={prod.imagem} alt={prod.tipo}
-                          className="w-14 h-14 object-contain rounded-lg bg-zinc-800 p-1 border border-zinc-700 shrink-0" />
+                          className="w-14 h-14 object-contain rounded-lg bg-zinc-800 p-1 border border-zinc-700 shrink-0 cursor-zoom-in"
+                          onClick={() => setLightbox({ src: prod.imagem, alt: `${prod.tipo} ${prod.modelo}` })} />
                       )}
                       <h3 className="font-semibold text-zinc-100 pt-1">{prod.tipo} {prod.modelo}</h3>
                     </div>
