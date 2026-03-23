@@ -64,7 +64,6 @@ export async function importCatalogPdf(buffer) {
     raw = response.content[0]?.text?.trim() ?? ''
     console.log('[importCatalogPdf] Resposta Claude (300 chars):', raw.slice(0, 300))
   } catch (err) {
-    // Log completo para diagnóstico
     console.error('[importCatalogPdf] Erro Anthropic:', {
       status: err.status,
       message: err.message,
@@ -84,7 +83,6 @@ export async function importCatalogPdf(buffer) {
     throw new Error(`Erro ao chamar Claude API: ${detail || err.message}`)
   }
 
-  // Remove markdown caso Claude adicione mesmo assim
   const jsonStr = raw
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```\s*$/i, '')

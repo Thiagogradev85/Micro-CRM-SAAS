@@ -72,12 +72,95 @@ function CatalogForm({ initial = {}, onSave, onCancel }) {
   )
 }
 
+// ── Máscaras ────────────────────────────────────────────────────────────────
+
+function maskBRL(digits) {
+  if (!digits) return ''
+  const value = parseInt(digits, 10) / 100
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+function parseBRL(masked) {
+  if (!masked) return ''
+  const n = parseFloat(masked.replace(/\./g, '').replace(',', '.'))
+  return isNaN(n) ? '' : n
+}
+function brlToDigits(value) {
+  if (value === '' || value == null) return ''
+  const cents = Math.round(parseFloat(String(value)) * 100)
+  return isNaN(cents) ? '' : String(cents)
+}
+function maskKG(digits) {
+  if (!digits) return ''
+  const value = parseInt(digits, 10) / 1000
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+}
+function parseKG(masked) {
+  if (!masked) return ''
+  const n = parseFloat(masked.replace(/\./g, '').replace(',', '.'))
+  return isNaN(n) ? '' : n
+}
+function kgToDigits(value) {
+  if (value === '' || value == null) return ''
+  const mg = Math.round(parseFloat(String(value)) * 1000)
+  return isNaN(mg) ? '' : String(mg)
+}
+
+function BRLInput({ value, onChange }) {
+  const [display, setDisplay] = useState(() => value ? maskBRL(brlToDigits(value)) : '')
+  useEffect(() => { setDisplay(value ? maskBRL(brlToDigits(value)) : '') }, [value])
+  function handleChange(e) {
+    const digits = e.target.value.replace(/\D/g, '')
+    setDisplay(maskBRL(digits))
+    onChange(parseBRL(maskBRL(digits)))
+  }
+  return (
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm pointer-events-none">R$</span>
+      <input className="input pl-9" value={display} onChange={handleChange} placeholder="0,00" inputMode="numeric" />
+    </div>
+  )
+}
+
+function KGInput({ value, onChange }) {
+  const [display, setDisplay] = useState(() => value ? maskKG(kgToDigits(value)) : '')
+  useEffect(() => { setDisplay(value ? maskKG(kgToDigits(value)) : '') }, [value])
+  function handleChange(e) {
+    const digits = e.target.value.replace(/\D/g, '')
+    setDisplay(maskKG(digits))
+    onChange(parseKG(maskKG(digits)))
+  }
+  return (
+    <div className="relative">
+      <input className="input pr-10" value={display} onChange={handleChange} placeholder="0,000" inputMode="numeric" />
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm pointer-events-none">kg</span>
+    </div>
+  )
+}
+
+function MMInput({ value, onChange }) {
+  const [display, setDisplay] = useState(() => value ? String(value).replace(/\D/g, '') : '')
+  useEffect(() => { setDisplay(value ? String(value).replace(/\D/g, '') : '') }, [value])
+  function handleChange(e) {
+    const digits = e.target.value.replace(/\D/g, '')
+    setDisplay(digits)
+    onChange(digits ? parseInt(digits, 10) : '')
+  }
+  return (
+    <div className="relative">
+      <input className="input pr-10" value={display} onChange={handleChange} placeholder="0" inputMode="numeric" />
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm pointer-events-none">mm</span>
+    </div>
+  )
+}
+
 // ── ProductForm ─────────────────────────────────────────────────────────────
 
 const EMPTY_PRODUCT = {
   tipo: '', modelo: '', bateria: '', motor: '',
   velocidade_min: '', velocidade_max: '', pneu: '', suspensao: '',
-  autonomia: '', carregador: '', peso: '', impermeabilidade: '',
+  autonomia: '', carregador: '', impermeabilidade: '',
+  peso_bruto: '', peso_liquido: '',
+  comprimento: '', largura: '', altura: '',
   estoque: 0, imagem: '', extra: '', preco: '',
 }
 
@@ -110,7 +193,10 @@ function ProductForm({ initial = {}, onSave, onCancel }) {
           {txt('tipo', 'Ex: patinete, bicicleta, scooter...')}
         </div>
         <div><label className="label">Modelo</label>{txt('modelo')}</div>
-        <div><label className="label">Preço (R$)</label>{num('preco')}</div>
+        <div>
+          <label className="label">Preço (R$)</label>
+          <BRLInput value={form.preco} onChange={v => set('preco', v)} />
+        </div>
         <div><label className="label">Bateria</label>{txt('bateria', 'Ex: 48V 15Ah')}</div>
         <div><label className="label">Motor</label>{txt('motor', 'Ex: 500W')}</div>
         <div><label className="label">Vel. Mín. (km/h)</label>{num('velocidade_min')}</div>
@@ -119,8 +205,20 @@ function ProductForm({ initial = {}, onSave, onCancel }) {
         <div><label className="label">Suspensão</label>{txt('suspensao')}</div>
         <div><label className="label">Autonomia</label>{txt('autonomia', 'Ex: 40-60km')}</div>
         <div><label className="label">Carregador</label>{txt('carregador', 'Ex: 2A')}</div>
-        <div><label className="label">Peso (kg)</label>{num('peso')}</div>
         <div><label className="label">Impermeabilidade</label>{txt('impermeabilidade', 'Ex: IPX4')}</div>
+
+        <div className="sm:col-span-2">
+          <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wide mb-2">Dimensões</p>
+          <div className="grid grid-cols-3 gap-3">
+            <div><label className="label">Comprimento</label><MMInput value={form.comprimento} onChange={v => set('comprimento', v)} /></div>
+            <div><label className="label">Largura</label><MMInput value={form.largura} onChange={v => set('largura', v)} /></div>
+            <div><label className="label">Altura</label><MMInput value={form.altura} onChange={v => set('altura', v)} /></div>
+          </div>
+        </div>
+
+        <div><label className="label">Peso Bruto</label><KGInput value={form.peso_bruto} onChange={v => set('peso_bruto', v)} /></div>
+        <div><label className="label">Peso Líquido</label><KGInput value={form.peso_liquido} onChange={v => set('peso_liquido', v)} /></div>
+
         <div><label className="label">Estoque</label>
           <input type="number" className="input" value={form.estoque}
             onChange={e => set('estoque', parseInt(e.target.value) || 0)} />
@@ -171,7 +269,11 @@ function ProductRow({ prod, catId, onEdit, onDelete, onStockChange }) {
         {prod.motor     && <span className="text-zinc-400"><span className="text-zinc-600">Motor:</span> {prod.motor}</span>}
         {prod.velocidade_max && <span className="text-zinc-400"><span className="text-zinc-600">Vel:</span> {prod.velocidade_max} km/h</span>}
         {prod.autonomia && <span className="text-zinc-400"><span className="text-zinc-600">Aut:</span> {prod.autonomia}</span>}
-        {prod.peso      && <span className="text-zinc-400"><span className="text-zinc-600">Peso:</span> {prod.peso} kg</span>}
+        {prod.peso_bruto && <span className="text-zinc-400"><span className="text-zinc-600">Peso Bruto:</span> {prod.peso_bruto} kg</span>}
+        {prod.peso_liquido && <span className="text-zinc-400"><span className="text-zinc-600">Peso Líq:</span> {prod.peso_liquido} kg</span>}
+        {(prod.comprimento || prod.largura || prod.altura) && (
+          <span className="text-zinc-400"><span className="text-zinc-600">Dim:</span> {[prod.comprimento, prod.largura, prod.altura].filter(Boolean).join(' × ')} mm</span>
+        )}
         {prod.pneu      && <span className="text-zinc-400"><span className="text-zinc-600">Pneu:</span> {prod.pneu}</span>}
       </div>
 

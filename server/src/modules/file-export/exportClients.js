@@ -31,28 +31,20 @@ export async function toExcel(clients) {
   wb.creator = 'CRM Scooter'
   const ws = wb.addWorksheet('Clientes', { views: [{ state: 'frozen', ySplit: 1 }] })
 
-  // Colunas
   ws.columns = COLS.map(({ label, key }) => {
-    const maxLen = Math.max(
-      label.length,
-      ...clients.map(c => String(c[key] ?? '').length)
-    )
+    const maxLen = Math.max(label.length, ...clients.map(c => String(c[key] ?? '').length))
     return { header: label, key, width: Math.min(Math.max(maxLen + 2, 10), 50) }
   })
 
-  // Estilo do cabeçalho
   const headerRow = ws.getRow(1)
   headerRow.eachCell(cell => {
     cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F3460' } }
     cell.font   = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 }
     cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false }
-    cell.border = {
-      bottom: { style: 'medium', color: { argb: 'FF16213E' } },
-    }
+    cell.border = { bottom: { style: 'medium', color: { argb: 'FF16213E' } } }
   })
   headerRow.height = 22
 
-  // Linhas de dados com zebra
   clients.forEach((c, i) => {
     const values = {}
     COLS.forEach(({ key }) => {
@@ -63,23 +55,17 @@ export async function toExcel(clients) {
     })
 
     const row = ws.addRow(values)
-    const isEven = i % 2 === 0
-    const bgColor = isEven ? 'FFF0F4FF' : 'FFFFFFFF'
-
+    const bgColor = i % 2 === 0 ? 'FFF0F4FF' : 'FFFFFFFF'
     row.eachCell({ includeEmpty: true }, cell => {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
       cell.font = { size: 10, color: { argb: 'FF1A1A2E' } }
       cell.alignment = { vertical: 'middle' }
-      cell.border = {
-        bottom: { style: 'thin', color: { argb: 'FFD0D9F0' } },
-      }
+      cell.border = { bottom: { style: 'thin', color: { argb: 'FFD0D9F0' } } }
     })
     row.height = 18
   })
 
-  // Auto-filtro no cabeçalho
   ws.autoFilter = { from: 'A1', to: { row: 1, column: COLS.length } }
-
   return wb.xlsx.writeBuffer()
 }
 
@@ -90,12 +76,10 @@ export function toPDF(clients) {
     doc.on('data', c => chunks.push(c))
     doc.on('end', () => resolve(Buffer.concat(chunks)))
 
-    // Título
     doc.fontSize(16).font('Helvetica-Bold').text('Relatório de Clientes', { align: 'center' })
     doc.fontSize(9).font('Helvetica').text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, { align: 'center' })
     doc.moveDown(0.5)
 
-    // Colunas visíveis no PDF (só os principais para caber na página)
     const pdfCols = [
       { key: 'nome',        label: 'Nome',      w: 130 },
       { key: 'cidade',      label: 'Cidade',    w: 70  },
@@ -111,7 +95,6 @@ export function toPDF(clients) {
     const startX = 40
     let y = doc.y + 5
 
-    // Cabeçalho da tabela
     doc.fontSize(7).font('Helvetica-Bold')
     doc.rect(startX, y, pdfCols.reduce((s, c) => s + c.w, 0), 14).fill('#1e3a5f')
     doc.fill('white')
@@ -123,13 +106,9 @@ export function toPDF(clients) {
     doc.fill('black')
     y += 14
 
-    // Linhas
     doc.fontSize(7).font('Helvetica')
     clients.forEach((c, i) => {
-      if (y > 520) {
-        doc.addPage()
-        y = 40
-      }
+      if (y > 520) { doc.addPage(); y = 40 }
       const bg = i % 2 === 0 ? '#1a1a2e' : '#16213e'
       doc.rect(startX, y, pdfCols.reduce((s, col) => s + col.w, 0), 13).fill(bg)
       doc.fill('#e2e8f0')

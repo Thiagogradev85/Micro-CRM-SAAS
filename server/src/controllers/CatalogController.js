@@ -1,6 +1,6 @@
 import { CatalogModel } from '../models/CatalogModel.js'
 import { ProductModel } from '../models/ProductModel.js'
-import { importCatalogPdf } from '../services/importCatalogPdf.js'
+import { importCatalogPdf } from '../modules/ai-import/index.js'
 import { AppError } from '../utils/AppError.js'
 
 export const CatalogController = {

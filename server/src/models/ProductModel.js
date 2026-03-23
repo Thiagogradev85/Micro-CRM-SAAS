@@ -28,9 +28,10 @@ export const ProductModel = {
     const { rows } = await db.query(`
       INSERT INTO products
         (catalog_id, tipo, modelo, bateria, motor, velocidade_min, velocidade_max,
-         pneu, suspensao, autonomia, carregador, peso, impermeabilidade,
+         pneu, suspensao, autonomia, carregador, peso_bruto, peso_liquido,
+         comprimento, largura, altura, impermeabilidade,
          estoque, imagem, extra, preco)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
       RETURNING *
     `, [
       catalog_id,
@@ -44,7 +45,11 @@ export const ProductModel = {
       cleanStr(data.suspensao),
       cleanStr(data.autonomia),
       cleanStr(data.carregador),
-      cleanStr(data.peso),
+      cleanNum(data.peso_bruto),
+      cleanNum(data.peso_liquido),
+      cleanNum(data.comprimento),
+      cleanNum(data.largura),
+      cleanNum(data.altura),
       cleanStr(data.impermeabilidade),
       cleanNum(data.estoque) ?? 0,
       cleanStr(data.imagem),
@@ -67,14 +72,18 @@ export const ProductModel = {
         suspensao        = $8,
         autonomia        = $9,
         carregador       = $10,
-        peso             = $11,
-        impermeabilidade = $12,
-        estoque          = $13,
-        imagem           = $14,
-        extra            = $15,
-        preco            = $16,
+        peso_bruto       = $11,
+        peso_liquido     = $12,
+        comprimento      = $13,
+        largura          = $14,
+        altura           = $15,
+        impermeabilidade = $16,
+        estoque          = $17,
+        imagem           = $18,
+        extra            = $19,
+        preco            = $20,
         updated_at       = NOW()
-      WHERE id = $17
+      WHERE id = $21
       RETURNING *
     `, [
       cleanStr(data.tipo),
@@ -87,7 +96,11 @@ export const ProductModel = {
       cleanStr(data.suspensao),
       cleanStr(data.autonomia),
       cleanStr(data.carregador),
-      cleanStr(data.peso),
+      cleanNum(data.peso_bruto),
+      cleanNum(data.peso_liquido),
+      cleanNum(data.comprimento),
+      cleanNum(data.largura),
+      cleanNum(data.altura),
       cleanStr(data.impermeabilidade),
       cleanNum(data.estoque) ?? 0,
       cleanStr(data.imagem),

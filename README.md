@@ -40,24 +40,30 @@ leads_crm/
 │   │   │   ├── ClientController.js     # Lista, CRUD, import Excel, export Excel/PDF,
 │   │   │   │                           #   compras, observações
 │   │   │   ├── CatalogController.js    # CRUD catálogo + produtos + import PDF via IA
-│   │   │   ├── DailyReportController.js
-│   │   │   └── StatusController.js
+│   │   │   └── DailyReportController.js
 │   │   ├── routes/
 │   │   │   ├── status.js
 │   │   │   ├── sellers.js
 │   │   │   ├── clients.js              # Multer para upload de arquivos em memória
 │   │   │   ├── catalogs.js
 │   │   │   └── dailyReport.js
-│   │   ├── services/
-│   │   │   ├── importExcel.js          # Parse de .xlsx com mapeamento flexível de colunas,
-│   │   │   │                           #   estados brasileiros (nome completo e sigla),
-│   │   │   │                           #   validação de WhatsApp (DDD + 9 dígitos)
-│   │   │   ├── exportClients.js        # Export formatado: .xlsx (ExcelJS com zebra/filtros)
-│   │   │   │                           #   e PDF paisagem com tema escuro (PDFKit)
-│   │   │   ├── importCatalogPdf.js     # IA: envia PDF ao Claude (claude-sonnet-4-6),
-│   │   │   │                           #   extrai specs de produtos como JSON
-│   │   │   └── generateReportPdf.js    # PDF do relatório diário com cards e listas coloridas
-│   │   └── index.js                   # Express: CORS, rotas, /health, error handler global
+│   │   ├── modules/                    # Passo 1 da refatoração: lógica de negócio isolada
+│   │   │   ├── ai-import/
+│   │   │   │   ├── importCatalogPdf.js # IA: envia PDF ao Claude (claude-sonnet-4-6),
+│   │   │   │   │                       #   extrai specs de produtos como JSON
+│   │   │   │   └── index.js            # export { importCatalogPdf }
+│   │   │   ├── file-import/
+│   │   │   │   ├── importExcel.js      # Parse de .xlsx com mapeamento flexível de colunas,
+│   │   │   │   │                       #   estados brasileiros (nome completo e sigla),
+│   │   │   │   │                       #   validação de WhatsApp (DDD + 9 dígitos)
+│   │   │   │   └── index.js            # export { importExcel }
+│   │   │   └── file-export/
+│   │   │       ├── exportClients.js    # Export formatado: .xlsx (ExcelJS com zebra/filtros)
+│   │   │       │                       #   e PDF paisagem com tema escuro (PDFKit)
+│   │   │       ├── generateReportPdf.js# PDF do relatório diário com cards e listas coloridas
+│   │   │       └── index.js            # export { toExcel, toPDF, generateReportPdf }
+│   │   └── index.js                   # Express: CORS, rotas, /health, error handler global,
+│   │                                  #   agendador de reset de status à meia-noite
 │   ├── migrations/
 │   │   ├── 001_schema.sql             # Schema completo — rodar no Neon
 │   │   ├── 002_add_tipo_to_products.sql
@@ -153,6 +159,77 @@ Atribuída automaticamente na importação e editável manualmente:
 ## Auto-atribuição de Vendedor
 
 Ao criar ou importar um cliente, o sistema verifica o campo `uf` e associa automaticamente o vendedor que cobre aquele estado (`seller_ufs`). Caso nenhum vendedor cubra a UF, o campo permanece nulo.
+
+---
+
+## Especificações Técnicas de Produtos
+
+Cada produto armazena as seguintes informações:
+
+| Campo             | Tipo    | Descrição                                 |
+|-------------------|---------|-------------------------------------------|
+| `tipo`            | texto   | Categoria (patinete, bicicleta, scooter…) |
+| `modelo`          | texto   | Nome/código do modelo                     |
+| `motor`           | texto   | Potência e tipo do motor                  |
+| `bateria`         | texto   | Capacidade e tipo da bateria              |
+| `velocidade_min`  | número  | Velocidade mínima (km/h)                  |
+| `velocidade_max`  | número  | Velocidade máxima (km/h)                  |
+| `autonomia`       | texto   | Autonomia de carga                        |
+| `pneu`            | texto   | Tipo/tamanho do pneu                      |
+| `suspensao`       | texto   | Tipo de suspensão                         |
+| `carregador`      | texto   | Especificação do carregador               |
+| `impermeabilidade`| texto   | Grau de proteção (ex: IPX4)               |
+| `peso_bruto`      | número  | Peso bruto em kg (com embalagem)          |
+| `peso_liquido`    | número  | Peso líquido em kg (sem embalagem)        |
+| `comprimento`     | número  | Comprimento em mm                         |
+| `largura`         | número  | Largura em mm                             |
+| `altura`          | número  | Altura em mm                              |
+| `preco`           | número  | Preço de venda em R$                      |
+| `estoque`         | número  | Quantidade em estoque                     |
+| `imagem`          | texto   | URL da imagem do produto                  |
+| `extra`           | texto   | Informações adicionais livres             |
+
+Os campos de peso usam máscara em kg (ex: `12,500`) e dimensões em mm (inteiro). Preço usa máscara BRL (ex: `R$ 1.299,00`).
+
+---
+
+## Arquitetura — Módulos (Passo 1)
+
+A lógica de negócio foi extraída da pasta `services/` e reorganizada em `modules/` com responsabilidades claras:
+
+| Módulo          | Responsabilidade                                                     |
+|-----------------|----------------------------------------------------------------------|
+| `ai-import`     | Importação de catálogos via PDF usando IA (Anthropic Claude)         |
+| `file-import`   | Importação de clientes via Excel (.xlsx)                             |
+| `file-export`   | Exportação de clientes (Excel/PDF) e geração de relatório diário PDF |
+
+Cada módulo expõe um `index.js` com exports nomeados. Os controllers importam apenas pelo caminho do módulo, sem depender da estrutura interna.
+
+```js
+// Antes (services/)
+import { importCatalogPdf } from '../services/importCatalogPdf.js'
+
+// Depois (modules/)
+import { importCatalogPdf } from '../modules/ai-import/index.js'
+```
+
+A pasta `services/` foi removida após a migração.
+
+---
+
+## Reset Automático de Status à Meia-Noite
+
+Clientes com status **Contatado** são revertidos para **Prospecção** automaticamente à meia-noite. O agendador é iniciado junto com o servidor e usa `setTimeout` recursivo para garantir pontualidade sem drift.
+
+```
+server/src/index.js → agendarResetMeiaNoite()
+```
+
+Regras de negócio relacionadas:
+- Clicar em **Contatado** muda o status e registra evento `contacted` (1x por dia por cliente via `ON CONFLICT DO NOTHING`)
+- Adicionar uma observação de follow-up também marca o cliente como Contatado e registra o evento
+- À meia-noite, todos os **Contatado** voltam para **Prospecção** automaticamente
+- Clientes criados manualmente ou importados via Excel sempre começam com status **Prospecção**
 
 ---
 
@@ -328,9 +405,9 @@ tests/
 ├── controllers/
 │   ├── ClientController.test.js
 │   └── DailyReportController.test.js
-└── services/
-    ├── importExcel.test.js
-    └── generateReportPdf.test.js
+└── modules/
+    ├── file-import/importExcel.test.js
+    └── file-export/generateReportPdf.test.js
 ```
 
 Casos de teste prioritários:

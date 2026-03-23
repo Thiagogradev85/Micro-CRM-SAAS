@@ -1,5 +1,5 @@
 import { DailyReportModel } from '../models/DailyReportModel.js'
-import { generateReportPdf } from '../services/generateReportPdf.js'
+import { generateReportPdf } from '../modules/file-export/index.js'
 
 export const DailyReportController = {
   async getSummary(req, res) {

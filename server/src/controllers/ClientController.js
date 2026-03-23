@@ -1,6 +1,6 @@
 import { ClientModel } from '../models/ClientModel.js'
-import { importExcel } from '../services/importExcel.js'
-import { toExcel, toPDF } from '../services/exportClients.js'
+import { importExcel } from '../modules/file-import/index.js'
+import { toExcel, toPDF } from '../modules/file-export/index.js'
 
 export const ClientController = {
   async list(req, res) {
