@@ -29,9 +29,9 @@ export const ProductModel = {
       INSERT INTO products
         (catalog_id, tipo, modelo, bateria, motor, velocidade_min, velocidade_max,
          pneu, suspensao, autonomia, carregador, peso_bruto, peso_liquido,
-         comprimento, largura, altura, impermeabilidade,
+         comprimento, largura, altura, impermeabilidade, cambio,
          estoque, imagem, extra, preco)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
       RETURNING *
     `, [
       catalog_id,
@@ -51,6 +51,7 @@ export const ProductModel = {
       cleanNum(data.largura),
       cleanNum(data.altura),
       cleanStr(data.impermeabilidade),
+      cleanStr(data.cambio),
       cleanNum(data.estoque) ?? 0,
       cleanStr(data.imagem),
       cleanStr(data.extra),
@@ -78,12 +79,13 @@ export const ProductModel = {
         largura          = $14,
         altura           = $15,
         impermeabilidade = $16,
-        estoque          = $17,
-        imagem           = $18,
-        extra            = $19,
-        preco            = $20,
+        cambio           = $17,
+        estoque          = $18,
+        imagem           = $19,
+        extra            = $20,
+        preco            = $21,
         updated_at       = NOW()
-      WHERE id = $21
+      WHERE id = $22
       RETURNING *
     `, [
       cleanStr(data.tipo),
@@ -102,6 +104,7 @@ export const ProductModel = {
       cleanNum(data.largura),
       cleanNum(data.altura),
       cleanStr(data.impermeabilidade),
+      cleanStr(data.cambio),
       cleanNum(data.estoque) ?? 0,
       cleanStr(data.imagem),
       cleanStr(data.extra),

@@ -17,15 +17,19 @@ Formato obrigatório:
     "pneu": null,
     "suspensao": null,
     "carregador": null,
-    "peso": null,
     "impermeabilidade": null,
-    "preco": null
+    "cambio": null,
+    "peso_bruto": null,
+    "peso_liquido": null,
+    "preco": null,
+    "extra": null
   }
 ]
 
 Regras:
 - velocidade_max e velocidade_min: NÚMEROS inteiros ou decimais, nunca string
-- preco: NÚMERO ou null
+- preco, peso_bruto, peso_liquido: NÚMERO ou null
+- cambio: string descrevendo o tipo de câmbio, ou null se não houver
 - Todos os outros campos: string ou null
 - Se um campo não aparecer, use null
 - Ignore páginas de capa, institucional, mapas e agradecimentos`
@@ -113,11 +117,13 @@ export async function importCatalogPdf(buffer) {
     pneu:             p.pneu             ?? null,
     suspensao:        p.suspensao        ?? null,
     carregador:       p.carregador       ?? null,
-    peso:             p.peso             ?? null,
     impermeabilidade: p.impermeabilidade ?? null,
+    cambio:           p.cambio           ?? null,
+    peso_bruto:       typeof p.peso_bruto  === 'number' ? p.peso_bruto  : null,
+    peso_liquido:     typeof p.peso_liquido === 'number' ? p.peso_liquido : null,
     preco:            typeof p.preco     === 'number' ? p.preco : null,
     estoque:          0,
     imagem:           null,
-    extra:            null,
+    extra:            p.extra            ?? null,
   }))
 }

@@ -143,7 +143,7 @@ function MMInput({ value, onChange, placeholder = '0' }) {
 const EMPTY_PRODUCT = {
   tipo: '', modelo: '', bateria: '', motor: '',
   velocidade_min: '', velocidade_max: '', pneu: '', suspensao: '',
-  autonomia: '', carregador: '', impermeabilidade: '',
+  autonomia: '', carregador: '', impermeabilidade: '', cambio: '',
   peso_bruto: '', peso_liquido: '',
   comprimento: '', largura: '', altura: '',
   estoque: 0, imagem: '', extra: '', preco: ''
@@ -191,6 +191,7 @@ function ProductForm({ initial = {}, onSave, onCancel }) {
         <div><label className="label">Autonomia</label>{txt('autonomia', 'Ex: 40-60km')}</div>
         <div><label className="label">Carregador</label>{txt('carregador', 'Ex: 2A')}</div>
         <div><label className="label">Impermeabilidade</label>{txt('impermeabilidade', 'Ex: IPX4')}</div>
+        <div><label className="label">Câmbio</label>{txt('cambio', 'Ex: 7 velocidades Shimano')}</div>
 
         {/* Dimensões */}
         <div className="sm:col-span-2">
@@ -388,6 +389,7 @@ export function ProductDetailPage() {
                     <Spec label="Suspensão"    value={prod.suspensao} />
                     <Spec label="Carregador"   value={prod.carregador} />
                     <Spec label="Impermeab."   value={prod.impermeabilidade} />
+                    <Spec label="Câmbio"       value={prod.cambio} />
                     <Spec label="Peso Bruto"   value={prod.peso_bruto ? `${Number(prod.peso_bruto).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} kg` : null} />
                     <Spec label="Peso Líquido" value={prod.peso_liquido ? `${Number(prod.peso_liquido).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} kg` : null} />
                     <Spec label="Comprimento"  value={prod.comprimento ? `${prod.comprimento} mm` : null} />

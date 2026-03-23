@@ -158,7 +158,7 @@ function MMInput({ value, onChange }) {
 const EMPTY_PRODUCT = {
   tipo: '', modelo: '', bateria: '', motor: '',
   velocidade_min: '', velocidade_max: '', pneu: '', suspensao: '',
-  autonomia: '', carregador: '', impermeabilidade: '',
+  autonomia: '', carregador: '', impermeabilidade: '', cambio: '',
   peso_bruto: '', peso_liquido: '',
   comprimento: '', largura: '', altura: '',
   estoque: 0, imagem: '', extra: '', preco: '',
@@ -206,6 +206,7 @@ function ProductForm({ initial = {}, onSave, onCancel }) {
         <div><label className="label">Autonomia</label>{txt('autonomia', 'Ex: 40-60km')}</div>
         <div><label className="label">Carregador</label>{txt('carregador', 'Ex: 2A')}</div>
         <div><label className="label">Impermeabilidade</label>{txt('impermeabilidade', 'Ex: IPX4')}</div>
+        <div><label className="label">Câmbio</label>{txt('cambio', 'Ex: 7 velocidades Shimano')}</div>
 
         <div className="sm:col-span-2">
           <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wide mb-2">Dimensões</p>
@@ -275,6 +276,7 @@ function ProductRow({ prod, catId, onEdit, onDelete, onStockChange }) {
           <span className="text-zinc-400"><span className="text-zinc-600">Dim:</span> {[prod.comprimento, prod.largura, prod.altura].filter(Boolean).join(' × ')} mm</span>
         )}
         {prod.pneu      && <span className="text-zinc-400"><span className="text-zinc-600">Pneu:</span> {prod.pneu}</span>}
+        {prod.cambio    && <span className="text-zinc-400"><span className="text-zinc-600">Câmbio:</span> {prod.cambio}</span>}
       </div>
 
       <div className="flex items-center gap-2 pt-1 border-t border-zinc-800/60">
