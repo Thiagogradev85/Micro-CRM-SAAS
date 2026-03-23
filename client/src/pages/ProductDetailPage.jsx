@@ -195,7 +195,7 @@ function ProductForm({ initial = {}, onSave, onCancel }) {
 
   const num = (k) => (
     <input type="number" step="0.01" className="input"
-      value={form[k]} onChange={e => set(k, e.target.value)} />
+      value={form[k] ?? ''} onChange={e => set(k, e.target.value)} />
   )
   const txt = (k, placeholder) => (
     <input className="input" value={form[k] || ''}
