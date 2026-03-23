@@ -101,8 +101,16 @@ export const ClientModel = {
     const bairro     = s(data.bairro)
     const cep        = s(data.cep)
     const nota       = data.nota || null
-    const status_id  = data.status_id || null
     const catalog_id = data.catalog_id || null
+
+    // Se não informou status, usa "Prospecção" por padrão
+    let status_id = data.status_id || null
+    if (!status_id) {
+      const { rows: st } = await db.query(
+        `SELECT id FROM status WHERE nome = 'Prospecção' LIMIT 1`
+      )
+      status_id = st[0]?.id || null
+    }
 
     // Se seller_id não foi informado, atribui automaticamente pelo UF
     const seller_id = data.seller_id || await this.findSellerByUF(uf)
@@ -275,6 +283,13 @@ export const ClientModel = {
     const results = { imported: 0, updated: 0, skipped: 0, errors: [] }
     try {
       await client.query('BEGIN')
+
+      // Busca o id de "Prospecção" uma vez para usar em todos os inserts
+      const { rows: stRows } = await client.query(
+        `SELECT id FROM status WHERE nome = 'Prospecção' LIMIT 1`
+      )
+      const prospeccaoId = stRows[0]?.id || null
+
       for (const rec of records) {
         try {
           if (!rec.nome || !rec.uf) {
@@ -312,9 +327,9 @@ export const ClientModel = {
             const nota = (!rec.whatsapp && !rec.instagram) ? 1 : null
 
             const { rows: inserted } = await client.query(
-              `INSERT INTO clients (nome, cidade, uf, whatsapp, site, instagram, nota, seller_id)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
-              [rec.nome, rec.cidade, rec.uf.toUpperCase(), rec.whatsapp, rec.site, rec.instagram, nota, seller_id]
+              `INSERT INTO clients (nome, cidade, uf, whatsapp, site, instagram, nota, seller_id, status_id)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+              [rec.nome, rec.cidade, rec.uf.toUpperCase(), rec.whatsapp, rec.site, rec.instagram, nota, seller_id, prospeccaoId]
             )
             await client.query(
               `INSERT INTO daily_report_events (client_id, event_type, event_date)

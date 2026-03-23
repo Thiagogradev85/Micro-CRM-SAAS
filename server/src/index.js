@@ -8,8 +8,41 @@ import clientRoutes      from './routes/clients.js'
 import catalogRoutes     from './routes/catalogs.js'
 import dailyReportRoutes from './routes/dailyReport.js'
 import { AppError }      from './utils/AppError.js'
+import db                from './db/db.js'
 
 dotenv.config()
+
+// ── Reset diário: Contatado → Prospecção à meia-noite ──
+async function resetContatadoParaProspeccao() {
+  try {
+    const { rowCount } = await db.query(`
+      UPDATE clients
+      SET status_id  = (SELECT id FROM status WHERE nome = 'Prospecção' LIMIT 1),
+          updated_at = NOW()
+      WHERE status_id = (SELECT id FROM status WHERE nome = 'Contatado' LIMIT 1)
+        AND ativo = true
+    `)
+    if (rowCount > 0) {
+      console.log(`[Reset diário] ${rowCount} cliente(s) voltaram para Prospecção.`)
+    }
+  } catch (err) {
+    console.error('[Reset diário] Erro:', err.message)
+  }
+}
+
+function agendarResetMeiaNoite() {
+  const agora = new Date()
+  const meiaNoite = new Date()
+  meiaNoite.setHours(24, 0, 0, 0) // próxima meia-noite
+  const msAteResetE = meiaNoite - agora
+
+  setTimeout(async () => {
+    await resetContatadoParaProspeccao()
+    agendarResetMeiaNoite() // reagenda para a próxima meia-noite
+  }, msAteResetE)
+
+  console.log(`[Reset diário] Agendado para ${meiaNoite.toLocaleString('pt-BR')}`)
+}
 
 const app = express()
 const PORT = process.env.PORT || 8000
@@ -40,4 +73,5 @@ app.use((err, req, res, _next) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando em http://localhost:${PORT}`)
+  agendarResetMeiaNoite()
 })
