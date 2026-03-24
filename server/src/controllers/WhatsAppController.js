@@ -27,14 +27,14 @@ export const WhatsAppController = {
     }
   },
 
-  // GET /whatsapp/preview?status_id=&uf=
+  // GET /whatsapp/preview?status_id=&ufs=MT,MS,PR
   // Retorna clientes que receberão a mensagem (com WhatsApp válido)
   async preview(req, res) {
     try {
-      const { status_id, uf } = req.query
+      const { status_id, ufs } = req.query
       const result = await ClientModel.list({
         status_id: status_id || undefined,
-        uf: uf || undefined,
+        uf: ufs || undefined,
         ativo: 'true',
         limit: 9999,
         page: 1,
@@ -47,15 +47,15 @@ export const WhatsAppController = {
   },
 
   // POST /whatsapp/send-bulk
-  // body: { status_id, uf, message, delay_ms }
+  // body: { status_id, ufs, message, delay_ms }
   async sendBulk(req, res) {
     try {
-      const { status_id, uf, message, delay_ms = 5000 } = req.body
+      const { status_id, ufs, message, delay_ms = 5000 } = req.body
       if (!message?.trim()) return res.status(400).json({ error: 'Mensagem não pode estar vazia.' })
 
       const result = await ClientModel.list({
         status_id: status_id || undefined,
-        uf: uf || undefined,
+        uf: ufs || undefined,
         ativo: 'true',
         limit: 9999,
         page: 1,
@@ -63,7 +63,6 @@ export const WhatsAppController = {
       const clients = result.data.filter(c => c.whatsapp)
       if (clients.length === 0) return res.status(400).json({ error: 'Nenhum cliente com WhatsApp encontrado para os filtros selecionados.' })
 
-      // Responde imediatamente e processa em background
       res.json({ message: `Iniciando envio para ${clients.length} clientes...`, total: clients.length })
 
       whatsAppService.sendBulk({

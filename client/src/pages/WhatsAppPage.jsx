@@ -1,17 +1,92 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   MessageCircle, Wifi, WifiOff, RefreshCw, Send, Users,
-  CheckCircle, XCircle, Clock, AlertTriangle, Loader2
+  CheckCircle, Clock, AlertTriangle, Loader2, ChevronDown, X
 } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { Toast } from '../components/Toast.jsx'
+import { UFS } from '../utils/constants.js'
+
+function UFMultiSelect({ selected, onChange }) {
+  const [open, setOpen] = useState(false)
+
+  function toggle(uf) {
+    onChange(selected.includes(uf) ? selected.filter(u => u !== uf) : [...selected, uf])
+  }
+
+  function toggleAll() {
+    onChange(selected.length === UFS.length ? [] : [...UFS])
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        className="input flex items-center justify-between w-full text-left"
+        onClick={() => setOpen(o => !o)}
+      >
+        <span className="truncate text-sm">
+          {selected.length === 0
+            ? <span className="text-zinc-500">Todos os estados</span>
+            : selected.length === UFS.length
+              ? 'Todos os estados'
+              : selected.join(', ')
+          }
+        </span>
+        <ChevronDown size={14} className={`shrink-0 ml-2 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {selected.length > 0 && selected.length < UFS.length && (
+        <button
+          type="button"
+          className="absolute right-8 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+          onClick={() => onChange([])}
+          title="Limpar seleção"
+        >
+          <X size={13} />
+        </button>
+      )}
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute z-20 top-full mt-1 w-full bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl max-h-64 overflow-y-auto">
+            <button
+              type="button"
+              className="w-full px-3 py-2 text-xs text-left text-sky-400 hover:bg-zinc-700 border-b border-zinc-700 font-medium"
+              onClick={toggleAll}
+            >
+              {selected.length === UFS.length ? 'Desmarcar todos' : 'Selecionar todos'}
+            </button>
+            <div className="grid grid-cols-4 gap-0 p-1">
+              {UFS.map(uf => (
+                <button
+                  key={uf}
+                  type="button"
+                  onClick={() => toggle(uf)}
+                  className={`px-2 py-1.5 text-xs rounded font-medium transition-colors text-center ${
+                    selected.includes(uf)
+                      ? 'bg-sky-600 text-white'
+                      : 'text-zinc-400 hover:bg-zinc-700 hover:text-zinc-100'
+                  }`}
+                >
+                  {uf}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 const POLL_INTERVAL = 3000 // ms — polling para status/QR
 
 export function WhatsAppPage() {
   const [status, setStatus]       = useState({ status: 'disconnected', phone: null, qrCode: null })
   const [statuses, setStatuses]   = useState([])
-  const [filters, setFilters]     = useState({ status_id: '', uf: '' })
+  const [filters, setFilters]     = useState({ status_id: '', ufs: [] })
   const [preview, setPreview]     = useState(null)   // { total, clients }
   const [message, setMessage]     = useState('')
   const [delayMs, setDelayMs]     = useState(6000)
@@ -58,7 +133,7 @@ export function WhatsAppPage() {
     try {
       const params = {}
       if (filters.status_id) params.status_id = filters.status_id
-      if (filters.uf) params.uf = filters.uf
+      if (filters.ufs.length > 0) params.ufs = filters.ufs.join(',')
       const result = await api.whatsappPreview(params)
       setPreview(result)
       setSendResult(null)
@@ -76,7 +151,7 @@ export function WhatsAppPage() {
     try {
       const params = {}
       if (filters.status_id) params.status_id = filters.status_id
-      if (filters.uf) params.uf = filters.uf
+      if (filters.ufs.length > 0) params.ufs = filters.ufs.join(',')
       const result = await api.whatsappSendBulk({ ...params, message, delay_ms: delayMs })
       setSendResult(result)
       showToast(result.message)
@@ -169,12 +244,10 @@ export function WhatsAppPage() {
             </select>
           </div>
           <div>
-            <label className="label">Estado (UF)</label>
-            <input
-              className="input"
-              placeholder="Ex: SP, MT, RJ..."
-              value={filters.uf}
-              onChange={e => setFilters(f => ({ ...f, uf: e.target.value.toUpperCase() }))}
+            <label className="label">Estados (UF)</label>
+            <UFMultiSelect
+              selected={filters.ufs}
+              onChange={ufs => setFilters(f => ({ ...f, ufs }))}
             />
           </div>
         </div>

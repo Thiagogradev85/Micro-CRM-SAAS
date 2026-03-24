@@ -6,8 +6,15 @@ export const ClientModel = {
     const params = []
 
     if (uf) {
-      params.push(uf.toUpperCase())
-      conditions.push(`c.uf = $${params.length}`)
+      // Aceita UF única ou array de UFs (ex: ['MT','MS','PR'])
+      const ufs = Array.isArray(uf) ? uf : uf.split(',').map(u => u.trim().toUpperCase()).filter(Boolean)
+      if (ufs.length === 1) {
+        params.push(ufs[0])
+        conditions.push(`c.uf = $${params.length}`)
+      } else if (ufs.length > 1) {
+        params.push(ufs)
+        conditions.push(`c.uf = ANY($${params.length})`)
+      }
     }
     if (status_id) {
       params.push(status_id)
