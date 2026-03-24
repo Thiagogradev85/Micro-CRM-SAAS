@@ -105,7 +105,7 @@ class WhatsAppService {
   }
 
   // Envia em lote com delay entre mensagens
-  async sendBulk({ clients, message, delayMs = 5000, onProgress }) {
+  async sendBulk({ clients, message, delayMs = 5000, onProgress, onSent }) {
     if (this.status !== 'connected') throw new Error('WhatsApp não está conectado.')
 
     const results = { sent: 0, failed: 0, errors: [] }
@@ -121,6 +121,7 @@ class WhatsAppService {
         await this.sendText(client.whatsapp, text)
         results.sent++
         console.log(`[WhatsApp] Enviado para ${client.nome} (${client.whatsapp})`)
+        if (onSent) await onSent(client)
       } catch (err) {
         results.failed++
         results.errors.push({ nome: client.nome, whatsapp: client.whatsapp, error: err.message })

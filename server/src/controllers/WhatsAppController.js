@@ -72,6 +72,13 @@ export const WhatsAppController = {
         onProgress: ({ current, total, results }) => {
           console.log(`[WhatsApp] Progresso: ${current}/${total} — enviados: ${results.sent}, erros: ${results.failed}`)
         },
+        onSent: async (client) => {
+          try {
+            await ClientModel.markContacted(client.id)
+          } catch (err) {
+            console.error(`[WhatsApp] Erro ao marcar cliente ${client.nome} como contatado:`, err.message)
+          }
+        },
       }).then(results => {
         console.log('[WhatsApp] Envio concluído:', results)
       })

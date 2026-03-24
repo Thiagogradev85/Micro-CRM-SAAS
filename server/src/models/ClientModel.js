@@ -237,6 +237,31 @@ export const ClientModel = {
     return updated
   },
 
+  // Marca cliente como "Contatado" — atualiza status, ultimo_contato e registra evento
+  async markContacted(id) {
+    const { rows: statusRows } = await db.query(
+      `SELECT id FROM status WHERE nome = 'Contatado' LIMIT 1`
+    )
+    const statusId = statusRows[0]?.id
+    if (statusId) {
+      await db.query(
+        `UPDATE clients SET status_id = $1, ultimo_contato = NOW(), updated_at = NOW() WHERE id = $2`,
+        [statusId, id]
+      )
+    } else {
+      await db.query(
+        `UPDATE clients SET ultimo_contato = NOW(), updated_at = NOW() WHERE id = $1`,
+        [id]
+      )
+    }
+    await db.query(
+      `INSERT INTO daily_report_events (client_id, event_type, event_date)
+       VALUES ($1, 'contacted', CURRENT_DATE)
+       ON CONFLICT DO NOTHING`,
+      [id]
+    )
+  },
+
   // Hard delete — remove permanentemente do banco
   async destroy(id) {
     await db.query('DELETE FROM clients WHERE id = $1', [id])
