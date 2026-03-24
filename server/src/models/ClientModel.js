@@ -18,8 +18,18 @@ export const ClientModel = {
       conditions.push(`c.ativo = $${params.length}`)
     }
     if (search) {
-      params.push(`%${search}%`)
-      conditions.push(`(c.nome ILIKE $${params.length} OR c.whatsapp ILIKE $${params.length} OR c.cidade ILIKE $${params.length})`)
+      // Divide em palavras, cada uma deve casar em pelo menos um campo (AND entre palavras)
+      const words = search.trim().split(/\s+/).filter(Boolean)
+      for (const word of words) {
+        params.push(`%${word}%`)
+        const n = params.length
+        conditions.push(`(
+          unaccent(c.nome)      ILIKE unaccent($${n}) OR
+          unaccent(c.cidade)    ILIKE unaccent($${n}) OR
+          c.whatsapp            ILIKE $${n}            OR
+          unaccent(c.instagram) ILIKE unaccent($${n})
+        )`)
+      }
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
