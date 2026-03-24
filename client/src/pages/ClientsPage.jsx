@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Plus, Search, Upload, Phone, Star, Eye, UserX, RefreshCw,
-  List, MapPin, Loader2, Instagram, X, Trash2, Download
+  List, MapPin, Loader2, Instagram, X, Trash2, Download,
+  ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react'
 
 const FILTERS_KEY = 'clients_filters'
@@ -143,6 +144,7 @@ export function ClientsPage() {
   const [viewMode, setViewMode] = useState(
     () => sessionStorage.getItem(VIEW_KEY) || 'state'
   )
+  const [nameSort, setNameSort] = useState('asc') // 'asc' | 'desc'
 
   const [filters, setFilters] = useState(
     () => savedFilters() || { search: '', status_id: '', uf: '', ativo: '', page: 1 }
@@ -268,10 +270,21 @@ export function ClientsPage() {
     sessionStorage.removeItem(FILTERS_KEY)
   }
 
+  const SortIcon = nameSort === 'asc' ? ArrowUp : ArrowDown
+
   const tableHead = (
     <thead>
       <tr>
-        <th>Nome</th>
+        <th>
+          <button
+            className="flex items-center gap-1 hover:text-sky-400 transition-colors"
+            onClick={() => setNameSort(s => s === 'asc' ? 'desc' : 'asc')}
+            title="Ordenar por nome"
+          >
+            Nome
+            <SortIcon size={13} className="text-sky-400" />
+          </button>
+        </th>
         <th className="hidden sm:table-cell">Cidade/UF</th>
         <th className="hidden md:table-cell">WhatsApp</th>
         <th className="hidden md:table-cell">Instagram</th>
@@ -285,6 +298,13 @@ export function ClientsPage() {
 
   const rowProps = { contactedToday, onContact: handleContact, onDeactivate: handleDeactivate, onDelete: handleDelete, navigate }
 
+  function sortByName(arr) {
+    return [...arr].sort((a, b) => {
+      const cmp = (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' })
+      return nameSort === 'asc' ? cmp : -cmp
+    })
+  }
+
   // ── Render modo "Por Estado" ────────────────────────────────────────────────
   function renderStateView() {
     const grouped = groupByUF(clients)
@@ -296,7 +316,6 @@ export function ClientsPage() {
       <div className="space-y-6">
         {sortedUFs.map(uf => (
           <div key={uf} className="table-wrapper">
-            {/* Cabeçalho do estado */}
             <div className="flex items-center gap-2 px-4 py-2 bg-zinc-800 border-b border-zinc-700">
               <MapPin size={14} className="text-sky-400" />
               <span className="font-semibold text-zinc-100 text-sm">{uf}</span>
@@ -307,7 +326,7 @@ export function ClientsPage() {
             <table className="table">
               {tableHead}
               <tbody>
-                {grouped[uf].map(c => (
+                {sortByName(grouped[uf]).map(c => (
                   <ClientRow
                     key={c.id}
                     c={c}
@@ -333,7 +352,7 @@ export function ClientsPage() {
           <table className="table">
             {tableHead}
             <tbody>
-              {clients.map(c => (
+              {sortByName(clients).map(c => (
                 <ClientRow
                   key={c.id}
                   c={c}
