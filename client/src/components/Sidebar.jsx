@@ -69,7 +69,7 @@ export function Sidebar() {
           ))}
         </nav>
 
-        <div className="px-4 text-xs text-zinc-600">v1.0.0</div>
+        <div className="px-4 text-xs text-zinc-600">v1.3.0</div>
       </aside>
     </>
   )
