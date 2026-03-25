@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { EmptyState } from '../components/EmptyState.jsx'
-import { Toast } from '../components/Toast.jsx'
+import { useAppModalError } from '../hooks/useAppModalError.js'
 import { ImageLightbox } from '../components/ImageLightbox.jsx'
 
 // ── Catalog date dropdowns ──────────────────────────────────────────────────
@@ -386,8 +386,6 @@ export function CatalogPage() {
   const [importingPdf, setImportingPdf] = useState(null)
   const [showForm, setShowForm]       = useState(false)
   const [editingCatalog, setEditingCatalog] = useState(null)
-  const [toast, setToast]             = useState(null)
-
   // Products state
   const [expanded, setExpanded]       = useState(null)   // catalogId currently open
   const [products, setProducts]       = useState({})     // { [catId]: Product[] }
@@ -395,8 +393,7 @@ export function CatalogPage() {
   const [showProductForm, setShowProductForm] = useState(null) // catId
   const [editingProduct, setEditingProduct]   = useState(null)
   const [addExistingFor, setAddExistingFor]   = useState(null) // catId
-
-  const showToast = (message, type = 'success') => setToast({ message, type })
+  const { modal, showModal } = useAppModalError()
 
   async function loadCatalogs() {
     setLoading(true)
@@ -433,28 +430,28 @@ export function CatalogPage() {
     try {
       await api.createCatalog(data)
       setShowForm(false)
-      showToast('Catálogo criado!')
+      showModal({ type: 'success', title: 'Sucesso', message: 'Catálogo criado!' })
       loadCatalogs()
-    } catch (err) { showToast(err.message, 'error') }
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
   }
 
   async function handleUpdateCatalog(id, data) {
     try {
       await api.updateCatalog(id, data)
       setEditingCatalog(null)
-      showToast('Catálogo atualizado!')
+      showModal({ type: 'success', title: 'Sucesso', message: 'Catálogo atualizado!' })
       loadCatalogs()
-    } catch (err) { showToast(err.message, 'error') }
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
   }
 
   async function handleDeleteCatalog(cat) {
     if (!confirm(`Excluir catálogo "${cat.nome}"? Isso removerá todos os produtos.`)) return
     try {
       await api.deleteCatalog(cat.id)
-      showToast('Catálogo excluído.')
+      showModal({ type: 'success', title: 'Sucesso', message: 'Catálogo excluído.' })
       if (expanded === cat.id) setExpanded(null)
       loadCatalogs()
-    } catch (err) { showToast(err.message, 'error') }
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
   }
 
   // ── PDF Import ───────────────────────────────────────────
@@ -465,12 +462,12 @@ export function CatalogPage() {
     setImportingPdf(catalogId)
     try {
       const result = await api.importCatalogPdf(catalogId, file)
-      showToast(`${result.created} produto${result.created !== 1 ? 's' : ''} criado${result.created !== 1 ? 's' : ''} a partir do PDF!`)
+      showModal({ type: 'success', title: 'PDF importado', message: `${result.created} produto${result.created !== 1 ? 's' : ''} criado${result.created !== 1 ? 's' : ''} a partir do PDF!` })
       // Refresh products if catalog is expanded
       await loadProducts(catalogId)
       loadCatalogs()
     } catch (err) {
-      showToast(err.message, 'error')
+      showModal({ type: 'error', title: 'Erro', message: err.message })
     } finally {
       setImportingPdf(null)
       e.target.value = ''
@@ -483,29 +480,29 @@ export function CatalogPage() {
     try {
       await api.createProduct(catId, data)
       setShowProductForm(null)
-      showToast('Produto criado!')
+      showModal({ type: 'success', title: 'Sucesso', message: 'Produto criado!' })
       await loadProducts(catId)
       loadCatalogs()
-    } catch (err) { showToast(err.message, 'error') }
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
   }
 
   async function handleUpdateProduct(catId, prodId, data) {
     try {
       await api.updateProduct(catId, prodId, data)
       setEditingProduct(null)
-      showToast('Produto atualizado!')
+      showModal({ type: 'success', title: 'Sucesso', message: 'Produto atualizado!' })
       await loadProducts(catId)
-    } catch (err) { showToast(err.message, 'error') }
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
   }
 
   async function handleDeleteProduct(catId, prod) {
     if (!confirm(`Excluir produto "${prod.nome}"?`)) return
     try {
       await api.deleteProduct(catId, prod.id)
-      showToast('Produto excluído.')
+      showModal({ type: 'success', title: 'Sucesso', message: 'Produto excluído.' })
       await loadProducts(catId)
       loadCatalogs()
-    } catch (err) { showToast(err.message, 'error') }
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
   }
 
   async function handleUpdateStock(catId, prod, estoque) {
@@ -515,34 +512,34 @@ export function CatalogPage() {
         ...p,
         [catId]: p[catId].map(pr => pr.id === prod.id ? { ...pr, estoque: parseInt(estoque) } : pr),
       }))
-    } catch (err) { showToast(err.message, 'error') }
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
   }
 
   async function handleUnlinkProduct(catId, prod) {
     if (!confirm('Remover produto do catálogo? O produto não será excluído.')) return
     try {
       await api.unlinkProductFromCatalog(catId, prod.id)
-      showToast('Produto removido do catálogo.')
+      showModal({ type: 'success', title: 'Sucesso', message: 'Produto removido do catálogo.' })
       await loadProducts(catId)
       loadCatalogs()
-    } catch (err) { showToast(err.message, 'error') }
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
   }
 
   async function handleAddExisting(catId, prod) {
     try {
       await api.linkProductToCatalog(catId, prod.id)
       setAddExistingFor(null)
-      showToast(`"${prod.tipo} ${prod.modelo}" adicionado ao catálogo!`)
+      showModal({ type: 'success', title: 'Produto adicionado', message: `"${prod.tipo} ${prod.modelo}" adicionado ao catálogo!` })
       await loadProducts(catId)
       loadCatalogs()
-    } catch (err) { showToast(err.message, 'error') }
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
   }
 
   // ── Render ──────────────────────────────────────────────
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+      {modal}
 
       {/* Add existing product modal */}
       {addExistingFor && (

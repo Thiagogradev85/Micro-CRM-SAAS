@@ -4,7 +4,7 @@ import { ArrowLeft, Edit2, Save, X, Plus, Trash2, Package, ImageIcon } from 'luc
 import { api } from '../utils/api.js'
 import { formatDate } from '../utils/constants.js'
 import { EmptyState } from '../components/EmptyState.jsx'
-import { Toast } from '../components/Toast.jsx'
+import { useAppModalError } from '../hooks/useAppModalError.js'
 import { ImageLightbox } from '../components/ImageLightbox.jsx'
 
 // ── Máscaras ────────────────────────────────────────────────────────────────

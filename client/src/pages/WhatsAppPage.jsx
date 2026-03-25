@@ -4,7 +4,7 @@ import {
   CheckCircle, Clock, AlertTriangle, Loader2, ChevronDown, X
 } from 'lucide-react'
 import { api } from '../utils/api.js'
-import { Toast } from '../components/Toast.jsx'
+import { useAppModalError } from '../hooks/useAppModalError.js'
 import { UFS } from '../utils/constants.js'
 
 function UFMultiSelect({ selected, onChange }) {
@@ -92,10 +92,8 @@ export function WhatsAppPage() {
   const [delayMs, setDelayMs]     = useState(6000)
   const [sending, setSending]     = useState(false)
   const [sendResult, setSendResult] = useState(null) // { message, total }
-  const [toast, setToast]         = useState(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
-
-  const showToast = (message, type = 'success') => setToast({ message, type })
+  const { modal, showModal } = useAppModalError()
 
   // Polling de status/QR
   const pollStatus = useCallback(async () => {
@@ -115,8 +113,8 @@ export function WhatsAppPage() {
   async function handleConnect() {
     try {
       await api.whatsappConnect()
-      showToast('Iniciando conexão... aguarde o QR Code aparecer.')
-    } catch (err) { showToast(err.message, 'error') }
+      showModal({ type: 'info', title: 'Conectando', message: 'Iniciando conexão... aguarde o QR Code aparecer.' })
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
   }
 
   async function handleDisconnect() {
@@ -124,8 +122,8 @@ export function WhatsAppPage() {
       await api.whatsappDisconnect()
       setPreview(null)
       setSendResult(null)
-      showToast('WhatsApp desconectado.')
-    } catch (err) { showToast(err.message, 'error') }
+      showModal({ type: 'success', title: 'Desconectado', message: 'WhatsApp desconectado.' })
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
   }
 
   async function handlePreview() {
@@ -137,13 +135,13 @@ export function WhatsAppPage() {
       const result = await api.whatsappPreview(params)
       setPreview(result)
       setSendResult(null)
-    } catch (err) { showToast(err.message, 'error') }
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
     finally { setLoadingPreview(false) }
   }
 
   async function handleSend() {
-    if (!message.trim()) return showToast('Digite a mensagem antes de enviar.', 'error')
-    if (!preview || preview.total === 0) return showToast('Faça o preview antes de enviar.', 'error')
+    if (!message.trim()) return showModal({ type: 'warning', title: 'Atenção', message: 'Digite a mensagem antes de enviar.' })
+    if (!preview || preview.total === 0) return showModal({ type: 'warning', title: 'Atenção', message: 'Faça o preview antes de enviar.' })
     if (!confirm(`Enviar mensagem para ${preview.total} clientes?\n\nEssa ação não pode ser desfeita.`)) return
 
     setSending(true)
@@ -154,8 +152,8 @@ export function WhatsAppPage() {
       if (filters.ufs.length > 0) params.ufs = filters.ufs.join(',')
       const result = await api.whatsappSendBulk({ ...params, message, delay_ms: delayMs })
       setSendResult(result)
-      showToast(result.message)
-    } catch (err) { showToast(err.message, 'error') }
+      showModal({ type: 'success', title: 'Enviado!', message: result.message })
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
     finally { setSending(false) }
   }
 
@@ -164,7 +162,7 @@ export function WhatsAppPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-3xl mx-auto">
-      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+      {modal}
 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">

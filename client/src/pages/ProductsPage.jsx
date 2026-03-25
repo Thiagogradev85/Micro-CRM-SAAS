@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Edit2, X, Plus, Trash2, Package, ImageIcon } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { EmptyState } from '../components/EmptyState.jsx'
-import { Toast } from '../components/Toast.jsx'
+import { useAppModalError } from '../hooks/useAppModalError.js'
 import { ImageLightbox } from '../components/ImageLightbox.jsx'
 
 // ── Máscaras ────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-  Users, BookOpen, BarChart2, UserCheck, X, Menu, Package, MessageCircle
+  Users, BookOpen, BarChart2, UserCheck, X, Menu, Package, MessageCircle, Mail
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -10,7 +10,8 @@ const links = [
   { to: '/catalogs',     icon: BookOpen,   label: 'Catálogos'       },
   { to: '/sellers',      icon: UserCheck,  label: 'Vendedores'      },
   { to: '/daily-report', icon: BarChart2,     label: 'Relatório Diário' },
-  { to: '/whatsapp',     icon: MessageCircle, label: 'CRM Automático'   },
+  { to: '/whatsapp',     icon: MessageCircle, label: 'WhatsApp'          },
+  { to: '/email',        icon: Mail,          label: 'E-mail em Massa'  },
 ]
 
 export function Sidebar() {

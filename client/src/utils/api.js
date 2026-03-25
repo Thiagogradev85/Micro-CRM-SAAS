@@ -132,6 +132,14 @@ export const api = {
   whatsappPreview:  (params)          => request('GET',  '/whatsapp/preview?' + new URLSearchParams(params).toString()),
   whatsappSendBulk: (data)            => request('POST', '/whatsapp/send-bulk', data),
 
+  // E-mail em Massa
+  emailStatus:      ()       => request('GET',  '/email/status'),
+  emailConfigure:   (data)   => request('POST', '/email/configure', data),
+  emailDisconnect:  ()       => request('POST', '/email/disconnect'),
+  emailPreview:     (params) => request('GET',  '/email/preview?' + new URLSearchParams(params).toString()),
+  emailSendTest:    (data)   => request('POST', '/email/send-test', data),
+  emailSendBulk:    (data)   => request('POST', '/email/send-bulk', data),
+
   // Daily Report
   getReportSummary: (date) => request('GET', `/daily-report/summary?date=${date}`),
   getReportDetails: (date) => request('GET', `/daily-report/details?date=${date}`),
