@@ -19,7 +19,7 @@ export const EmailController = {
       await emailService.configure({ host, port, secure, user, pass })
       res.json({ message: `Conectado como ${user}` })
     } catch (err) {
-      next(err)
+      next(err instanceof AppError ? err : new AppError(err.message, 400))
     }
   },
 
@@ -56,6 +56,10 @@ export const EmailController = {
       if (!subject?.trim()) throw new AppError('Assunto não pode estar vazio.', 400)
       if (!message?.trim()) throw new AppError('Mensagem não pode estar vazia.', 400)
 
+      if (emailService.status !== 'connected') {
+        throw new AppError('E-mail não está configurado. Configure a conexão SMTP primeiro.', 400)
+      }
+
       // Interpola com dados fictícios para o teste
       const resolvedSubject = subject
         .replace(/\{\{nome\}\}/gi, 'Teste')
@@ -70,7 +74,7 @@ export const EmailController = {
       await emailService.sendMail({ to, subject: resolvedSubject, html: resolvedHtml })
       res.json({ message: `E-mail de teste enviado para ${to}` })
     } catch (err) {
-      next(err)
+      next(err instanceof AppError ? err : new AppError(err.message, 400))
     }
   },
 
