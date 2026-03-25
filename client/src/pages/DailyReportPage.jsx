@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { formatDate } from '../utils/constants.js'
-import { Toast } from '../components/Toast.jsx'
+import { useAppModalError } from '../hooks/useAppModalError.js'
 
 function SummaryCard({ icon: Icon, label, value, color }) {
   return (
@@ -62,13 +62,11 @@ function ClientList({ title, clients, defaultOpen = false }) {
 }
 
 export function DailyReportPage() {
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('en-CA') // data local do usuário, não UTC
   const [date, setDate]       = useState(today)
   const [report, setReport]   = useState(null)
   const [loading, setLoading] = useState(false)
-  const [toast, setToast]     = useState(null)
-
-  const showToast = (m, t = 'success') => setToast({ message: m, type: t })
+  const { modal, showModal } = useAppModalError()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -76,7 +74,7 @@ export function DailyReportPage() {
       const data = await api.getReportDetails(date)
       setReport(data)
     } catch (err) {
-      showToast(err.message, 'error')
+      showModal({ type: 'error', title: 'Erro', message: err.message })
     } finally {
       setLoading(false)
     }
@@ -86,7 +84,7 @@ export function DailyReportPage() {
 
   function handleDownloadPdf() {
     api.downloadReportPdf(date)
-    showToast('PDF sendo gerado...')
+    showModal({ type: 'info', title: 'Gerando PDF', message: 'PDF sendo gerado, aguarde...' })
   }
 
   const summary = report?.summary || {}
@@ -94,7 +92,7 @@ export function DailyReportPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-2xl mx-auto">
-      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+      {modal}
 
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">

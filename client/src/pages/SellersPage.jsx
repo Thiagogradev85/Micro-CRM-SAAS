@@ -3,7 +3,7 @@ import { Plus, Edit2, Trash2, UserCheck } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { UFS, whatsappLink } from '../utils/constants.js'
 import { EmptyState } from '../components/EmptyState.jsx'
-import { Toast } from '../components/Toast.jsx'
+import { useAppModalError } from '../hooks/useAppModalError.js'
 
 function SellerForm({ initial = {}, onSave, onCancel }) {
   const [nome,     setNome]     = useState(initial.nome || '')
@@ -69,9 +69,7 @@ export function SellersPage() {
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing]  = useState(null)
-  const [toast, setToast]      = useState(null)
-
-  const showToast = (m, t = 'success') => setToast({ message: m, type: t })
+  const { modal, showModal } = useAppModalError()
 
   async function load() {
     setLoading(true)
@@ -85,32 +83,32 @@ export function SellersPage() {
     try {
       await api.createSeller(data)
       setShowForm(false)
-      showToast('Vendedor criado!')
+      showModal({ type: 'success', title: 'Sucesso', message: 'Vendedor criado!' })
       load()
-    } catch (err) { showToast(err.message, 'error') }
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
   }
 
   async function handleUpdate(id, data) {
     try {
       await api.updateSeller(id, data)
       setEditing(null)
-      showToast('Vendedor atualizado!')
+      showModal({ type: 'success', title: 'Sucesso', message: 'Vendedor atualizado!' })
       load()
-    } catch (err) { showToast(err.message, 'error') }
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
   }
 
   async function handleDelete(seller) {
     if (!confirm(`Excluir vendedor "${seller.nome}"?`)) return
     try {
       await api.deleteSeller(seller.id)
-      showToast('Vendedor excluído.')
+      showModal({ type: 'success', title: 'Sucesso', message: 'Vendedor excluído.' })
       load()
-    } catch (err) { showToast(err.message, 'error') }
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
   }
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+      {modal}
 
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-zinc-100">Vendedores</h1>

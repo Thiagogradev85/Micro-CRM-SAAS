@@ -16,11 +16,11 @@ import { api } from '../utils/api.js'
 import { formatDate, statusPill, NOTAS, UFS, whatsappLink, instagramLink } from '../utils/constants.js'
 import { ClientForm } from '../components/ClientForm.jsx'
 import { EmptyState } from '../components/EmptyState.jsx'
-import { Toast } from '../components/Toast.jsx'
+import { useAppModalError } from '../hooks/useAppModalError.js'
 
 function isCreatedToday(dateStr) {
   if (!dateStr) return false
-  const today = new Date().toISOString().slice(0, 10)
+  const today = new Date().toLocaleDateString('en-CA') // data local do usuário
   return dateStr.slice(0, 10) === today
 }
 
@@ -145,7 +145,6 @@ export function ClientsPage() {
   const [loading, setLoading]     = useState(false)
   const [importing, setImporting] = useState(false)
   const [showForm, setShowForm]   = useState(false)
-  const [toast, setToast]         = useState(null)
   const [contactedToday, setContactedToday] = useState(new Set())
   const [confirmModal, setConfirmModal] = useState(null) // { client }
   const [showExportMenu, setShowExportMenu] = useState(false)
@@ -154,6 +153,7 @@ export function ClientsPage() {
     () => sessionStorage.getItem(VIEW_KEY) || 'state'
   )
   const [nameSort, setNameSort] = useState('asc') // 'asc' | 'desc'
+  const { modal, showModal } = useAppModalError()
 
   const [filters, setFilters] = useState(
     () => savedFilters() || { search: '', status_id: '', uf: '', ativo: '', page: 1 }
@@ -179,7 +179,7 @@ export function ClientsPage() {
       setTotal(result.total)
 
       // Verifica quais clientes já foram contatados hoje
-      const today = new Date().toISOString().split('T')[0]
+      const today = new Date().toLocaleDateString('en-CA') // data local do usuário
       const details = await api.getReportDetails(today)
       setContactedToday(new Set(details.details.contacted.map(c => c.client_id)))
     } finally {
@@ -193,18 +193,14 @@ export function ClientsPage() {
 
   useEffect(() => { load() }, [load])
 
-  function showToast(message, type = 'success') {
-    setToast({ message, type })
-  }
-
   async function handleContact(client) {
     try {
       await api.updateClient(client.id, { status_id: statuses.find(s => s.nome === 'Contatado')?.id })
       setContactedToday(prev => new Set([...prev, client.id]))
-      showToast(`${client.nome} marcado como Contatado!`)
+      showModal({ type: 'success', title: 'Status atualizado', message: `${client.nome} marcado como Contatado!` })
       load()
     } catch (err) {
-      showToast(err.message, 'error')
+      showModal({ type: 'error', title: 'Erro', message: err.message })
     }
   }
 
@@ -221,10 +217,10 @@ export function ClientsPage() {
     setConfirmModal(null)
     try {
       await api.deleteClient(client.id, permanent)
-      showToast(permanent ? `${client.nome} excluído permanentemente.` : `${client.nome} inativado.`)
+      showModal({ type: 'success', title: 'Concluído', message: permanent ? `${client.nome} excluído permanentemente.` : `${client.nome} inativado.` })
       load()
     } catch (err) {
-      showToast(err.message, 'error')
+      showModal({ type: 'error', title: 'Erro', message: err.message })
     }
   }
 
@@ -232,10 +228,10 @@ export function ClientsPage() {
     try {
       await api.createClient(data)
       setShowForm(false)
-      showToast('Cliente criado com sucesso!')
+      showModal({ type: 'success', title: 'Cliente criado', message: 'Cliente criado com sucesso!' })
       load()
     } catch (err) {
-      showToast(err.message, 'error')
+      showModal({ type: 'error', title: 'Erro', message: err.message })
     }
   }
 
@@ -249,10 +245,10 @@ export function ClientsPage() {
       if (result.imported > 0) parts.push(`${result.imported} novo${result.imported !== 1 ? 's' : ''}`)
       if (result.updated  > 0) parts.push(`${result.updated} atualizado${result.updated  !== 1 ? 's' : ''}`)
       if (result.skipped  > 0) parts.push(`${result.skipped} ignorado${result.skipped   !== 1 ? 's' : ''}`)
-      showToast(`Importação concluída: ${parts.join(' · ')}`, 'success')
+      showModal({ type: 'success', title: 'Importação concluída', message: `Importação concluída: ${parts.join(' · ')}` })
       load()
     } catch (err) {
-      showToast(`Erro na importação: ${err.message}`, 'error')
+      showModal({ type: 'error', title: 'Erro na importação', message: err.message })
     } finally {
       setImporting(false)
       e.target.value = ''
@@ -401,7 +397,7 @@ export function ClientsPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+      {modal}
 
       {/* Modal inativar / deletar */}
       {confirmModal && (

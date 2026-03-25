@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { formatDate, formatDateTime, statusPill, NOTAS, UFS, whatsappLink, instagramLink, facebookLink, twitterLink, linkedinLink } from '../utils/constants.js'
-import { Toast } from '../components/Toast.jsx'
+import { useAppModalError } from '../hooks/useAppModalError.js'
 
 export function ClientDetailPage() {
   const { id } = useParams()
@@ -22,9 +22,7 @@ export function ClientDetailPage() {
   const [form, setForm]             = useState({})
   const [obsText, setObsText]       = useState('')
   const [loading, setLoading]       = useState(false)
-  const [toast, setToast]           = useState(null)
-
-  function showToast(message, type = 'success') { setToast({ message, type }) }
+  const { modal, showModal } = useAppModalError()
 
   const load = useCallback(async () => {
     const [c, obs, s, cat, sel] = await Promise.all([
@@ -71,11 +69,11 @@ export function ClientDetailPage() {
         seller_id:   form.seller_id  ? parseInt(form.seller_id)  : null,
         ativo:       form.ativo,
       })
-      showToast('Cliente atualizado!')
+      showModal({ type: 'success', title: 'Sucesso', message: 'Cliente atualizado!' })
       setEditing(false)
       load()
     } catch (err) {
-      showToast(err.message, 'error')
+      showModal({ type: 'error', title: 'Erro', message: err.message })
     } finally {
       setLoading(false)
     }
@@ -84,9 +82,9 @@ export function ClientDetailPage() {
   async function handlePurchase() {
     try {
       await api.registerPurchase(id)
-      showToast('Compra registrada no relatório diário! 🎉')
+      showModal({ type: 'success', title: 'Compra registrada!', message: 'Compra registrada no relatório diário.' })
     } catch (err) {
-      showToast(err.message, 'error')
+      showModal({ type: 'error', title: 'Erro', message: err.message })
     }
   }
 
@@ -96,9 +94,9 @@ export function ClientDetailPage() {
       const obs = await api.addObservation(id, obsText.trim())
       setObs(prev => [obs, ...prev])
       setObsText('')
-      showToast('Follow-up salvo!')
+      showModal({ type: 'success', title: 'Sucesso', message: 'Follow-up salvo!' })
     } catch (err) {
-      showToast(err.message, 'error')
+      showModal({ type: 'error', title: 'Erro', message: err.message })
     }
   }
 
@@ -108,7 +106,7 @@ export function ClientDetailPage() {
       await api.deleteObservation(id, obsId)
       setObs(prev => prev.filter(o => o.id !== obsId))
     } catch (err) {
-      showToast(err.message, 'error')
+      showModal({ type: 'error', title: 'Erro', message: err.message })
     }
   }
 
@@ -139,7 +137,7 @@ export function ClientDetailPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-5">
-      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+      {modal}
 
       <button className="btn-ghost btn-sm" onClick={() => navigate('/clients')}>
         <ArrowLeft size={15} /> Voltar

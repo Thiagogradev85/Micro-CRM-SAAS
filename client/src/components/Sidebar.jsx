@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-  Users, BookOpen, BarChart2, UserCheck, X, Menu, Package
+  Users, BookOpen, BarChart2, UserCheck, X, Menu, Package, MessageCircle, Mail
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -9,7 +9,9 @@ const links = [
   { to: '/products',     icon: Package,    label: 'Produtos'        },
   { to: '/catalogs',     icon: BookOpen,   label: 'Catálogos'       },
   { to: '/sellers',      icon: UserCheck,  label: 'Vendedores'      },
-  { to: '/daily-report', icon: BarChart2,  label: 'Relatório Diário'},
+  { to: '/daily-report', icon: BarChart2,     label: 'Relatório Diário' },
+  { to: '/whatsapp',     icon: MessageCircle, label: 'WhatsApp'          },
+  { to: '/email',        icon: Mail,          label: 'E-mail em Massa'  },
 ]
 
 export function Sidebar() {
@@ -43,7 +45,7 @@ export function Sidebar() {
         md:translate-x-0 md:static md:flex
       `}>
         <div className="px-4 mb-6 cursor-pointer" onClick={() => navigate('/clients')}>
-          <span className="text-sky-400 font-bold text-lg tracking-tight hover:text-sky-300 transition-colors">⚡ CRM Scooter</span>
+          <span className="text-sky-400 font-bold text-lg tracking-tight hover:text-sky-300 transition-colors">⚡ CRM</span>
           <p className="text-zinc-500 text-xs mt-0.5">Controle de Vendas</p>
         </div>
 

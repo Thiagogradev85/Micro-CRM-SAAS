@@ -1,9 +1,10 @@
 import { ClientModel } from '../models/ClientModel.js'
 import { importExcel } from '../modules/file-import/index.js'
 import { toExcel, toPDF } from '../modules/file-export/index.js'
+import { AppError } from '../utils/AppError.js'
 
 export const ClientController = {
-  async list(req, res) {
+  async list(req, res, next) {
     try {
       const { uf, status_id, ativo, search, page, limit, sort } = req.query
       const result = await ClientModel.list({
@@ -17,100 +18,97 @@ export const ClientController = {
       })
       res.json(result)
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 
-  async get(req, res) {
+  async get(req, res, next) {
     try {
       const data = await ClientModel.get(req.params.id)
-      if (!data) return res.status(404).json({ error: 'Cliente não encontrado' })
+      if (!data) throw new AppError('Cliente não encontrado', 404)
       res.json(data)
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 
-  async create(req, res) {
+  async create(req, res, next) {
     try {
       const data = await ClientModel.create(req.body)
       res.status(201).json(data)
     } catch (err) {
-      // Violação de chave única (nome + uf duplicado)
-      if (err.code === '23505') {
-        return res.status(409).json({ error: 'Já existe um cliente com este nome neste estado (UF).' })
-      }
-      res.status(500).json({ error: err.message })
+      if (err.code === '23505') return next(new AppError('Já existe um cliente com este nome neste estado (UF).', 409))
+      next(err)
     }
   },
 
-  async update(req, res) {
+  async update(req, res, next) {
     try {
       const data = await ClientModel.update(req.params.id, req.body)
-      if (!data) return res.status(404).json({ error: 'Cliente não encontrado' })
+      if (!data) throw new AppError('Cliente não encontrado', 404)
       res.json(data)
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 
   // Soft delete (inativa) ou hard delete (apaga), conforme ?permanent=true
-  async delete(req, res) {
+  async delete(req, res, next) {
     try {
       if (req.query.permanent === 'true') {
         await ClientModel.destroy(req.params.id)
         return res.json({ message: 'Cliente excluído permanentemente' })
       }
       const data = await ClientModel.deactivate(req.params.id)
-      if (!data) return res.status(404).json({ error: 'Cliente não encontrado' })
+      if (!data) throw new AppError('Cliente não encontrado', 404)
       res.json({ message: 'Cliente inativado com sucesso', client: data })
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 
   // Registra compra no relatório diário
-  async registerPurchase(req, res) {
+  async registerPurchase(req, res, next) {
     try {
       await ClientModel.registerPurchase(req.params.id)
       res.json({ message: 'Compra registrada no relatório diário' })
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 
   // Observações
-  async listObservations(req, res) {
+  async listObservations(req, res, next) {
     try {
       const data = await ClientModel.listObservations(req.params.id)
       res.json(data)
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 
-  async addObservation(req, res) {
+  async addObservation(req, res, next) {
     try {
       const { texto } = req.body
-      if (!texto) return res.status(400).json({ error: 'Texto obrigatório' })
+      if (!texto) throw new AppError('Texto obrigatório', 400)
       const data = await ClientModel.addObservation(req.params.id, texto)
       res.status(201).json(data)
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 
-  async deleteObservation(req, res) {
+  async deleteObservation(req, res, next) {
     try {
       await ClientModel.deleteObservation(req.params.obsId)
       res.status(204).end()
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 
   // Exportação Excel / PDF (respeita os mesmos filtros da listagem)
-  async exportClients(req, res) {
+  async exportClients(req, res, next) {
     try {
       const { uf, status_id, ativo, search, format = 'xlsx' } = req.query
       const result = await ClientModel.list({
@@ -136,19 +134,19 @@ export const ClientController = {
       res.setHeader('Content-Disposition', 'attachment; filename="clientes.xlsx"')
       return res.send(buf)
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 
   // Importação via Excel
-  async importExcel(req, res) {
+  async importExcel(req, res, next) {
     try {
-      if (!req.file) return res.status(400).json({ error: 'Arquivo não enviado' })
+      if (!req.file) throw new AppError('Arquivo não enviado', 400)
       const records = await importExcel(req.file.buffer)
       const result = await ClientModel.bulkUpsert(records)
       res.json(result)
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 }

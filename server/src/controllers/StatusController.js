@@ -1,50 +1,51 @@
 import { StatusModel } from '../models/StatusModel.js'
+import { AppError } from '../utils/AppError.js'
 
 export const StatusController = {
-  async list(req, res) {
+  async list(req, res, next) {
     try {
       const data = await StatusModel.list()
       res.json(data)
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 
-  async get(req, res) {
+  async get(req, res, next) {
     try {
       const data = await StatusModel.get(req.params.id)
-      if (!data) return res.status(404).json({ error: 'Status não encontrado' })
+      if (!data) throw new AppError('Status não encontrado', 404)
       res.json(data)
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 
-  async create(req, res) {
+  async create(req, res, next) {
     try {
       const data = await StatusModel.create(req.body)
       res.status(201).json(data)
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 
-  async update(req, res) {
+  async update(req, res, next) {
     try {
       const data = await StatusModel.update(req.params.id, req.body)
-      if (!data) return res.status(404).json({ error: 'Status não encontrado' })
+      if (!data) throw new AppError('Status não encontrado', 404)
       res.json(data)
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 
-  async delete(req, res) {
+  async delete(req, res, next) {
     try {
       await StatusModel.delete(req.params.id)
       res.status(204).end()
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 }

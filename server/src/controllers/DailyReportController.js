@@ -2,39 +2,39 @@ import { DailyReportModel } from '../models/DailyReportModel.js'
 import { generateReportPdf } from '../modules/file-export/index.js'
 
 export const DailyReportController = {
-  async getSummary(req, res) {
+  async getSummary(req, res, next) {
     try {
-      const date = req.query.date || new Date().toISOString().split('T')[0]
+      const date = req.query.date || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
       const summary = await DailyReportModel.getSummary(date)
       res.json({ date, summary })
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 
-  async getDetails(req, res) {
+  async getDetails(req, res, next) {
     try {
-      const date = req.query.date || new Date().toISOString().split('T')[0]
+      const date = req.query.date || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
       const details = await DailyReportModel.getDetails(date)
       const summary = await DailyReportModel.getSummary(date)
       res.json({ date, summary, details })
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 
-  async listDates(req, res) {
+  async listDates(req, res, next) {
     try {
       const dates = await DailyReportModel.listDatesWithEvents()
       res.json(dates)
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 
-  async downloadPdf(req, res) {
+  async downloadPdf(req, res, next) {
     try {
-      const date = req.query.date || new Date().toISOString().split('T')[0]
+      const date = req.query.date || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
       const details = await DailyReportModel.getDetails(date)
       const summary = await DailyReportModel.getSummary(date)
 
@@ -47,7 +47,7 @@ export const DailyReportController = {
       )
       res.send(pdfBuffer)
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      next(err)
     }
   },
 }
