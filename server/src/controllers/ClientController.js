@@ -120,6 +120,7 @@ export const ClientController = {
       const { texto } = req.body
       if (!texto) throw new AppError('Texto obrigatório', 400)
       const data = await ClientModel.addObservation(req.params.id, texto)
+      await ClientModel.markContacted(req.params.id)
       res.status(201).json(data)
     } catch (err) {
       next(err)
