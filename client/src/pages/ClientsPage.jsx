@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import {
   Plus, Search, Upload, Phone, Star, Eye, UserX, RefreshCw,
   List, MapPin, Loader2, Instagram, X, Trash2, Download,
-  ArrowUpDown, ArrowUp, ArrowDown, Sparkles, AlertTriangle
+  ArrowUpDown, ArrowUp, ArrowDown, Sparkles, AlertTriangle,
+  ChevronDown, ChevronUp
 } from 'lucide-react'
 
 const FILTERS_KEY = 'clients_filters'
@@ -181,6 +182,12 @@ export function ClientsPage() {
     () => sessionStorage.getItem(VIEW_KEY) || 'state'
   )
   const [nameSort, setNameSort] = useState('asc') // 'asc' | 'desc'
+  const [attentionOpen, setAttentionOpen] = useState(
+    () => sessionStorage.getItem('section_attention') === 'true'
+  )
+  const [newClientsOpen, setNewClientsOpen] = useState(
+    () => sessionStorage.getItem('section_newclients') === 'true'
+  )
   const { modal, showModal } = useAppModalError()
   const { overdueClients, showModal: showOverdueModal, dismiss: dismissOverdue } = useOverdueReminder()
 
@@ -293,6 +300,14 @@ export function ClientsPage() {
     sessionStorage.setItem(VIEW_KEY, viewMode)
   }, [viewMode])
 
+  useEffect(() => {
+    sessionStorage.setItem('section_attention', attentionOpen)
+  }, [attentionOpen])
+
+  useEffect(() => {
+    sessionStorage.setItem('section_newclients', newClientsOpen)
+  }, [newClientsOpen])
+
   const EMPTY_FILTERS = { search: '', status_id: '', uf: '', ativo: '', page: 1 }
 
   const setFilter = (k, v) => setFilters(f => ({ ...f, [k]: v, page: 1 }))
@@ -341,10 +356,9 @@ export function ClientsPage() {
 
   // ── Render modo "Por Estado" ────────────────────────────────────────────────
   function renderStateView() {
-    const newClients     = clients.filter(c => isCreatedToday(c.created_at))
-    const nonNewClients  = clients.filter(c => !isCreatedToday(c.created_at))
-    const overdueGroup   = nonNewClients.filter(c => isOverdue(c))
-    const normalClients  = nonNewClients.filter(c => !isOverdue(c))
+    const newClients    = clients.filter(c => isCreatedToday(c.created_at))
+    const overdueGroup  = clients.filter(c => isOverdue(c))
+    const normalClients = clients.filter(c => !isOverdue(c))
 
     const grouped   = groupByUF(normalClients)
     const sortedUFs = Object.keys(grouped).sort((a, b) => a.localeCompare(b))
@@ -353,23 +367,33 @@ export function ClientsPage() {
       return <EmptyState icon={Search} message="Nenhum cliente encontrado" />
 
     function UFSection({ uf, rows }) {
+      const [open, setOpen] = useState(false)
       return (
         <div className="table-wrapper">
-          <div className="flex items-center gap-2 px-4 py-2 bg-zinc-800 border-b border-zinc-700">
+          <button
+            className="w-full flex items-center gap-2 px-4 py-2 bg-zinc-800 border-b border-zinc-700 hover:bg-zinc-700/60 transition-colors text-left"
+            onClick={() => setOpen(v => !v)}
+          >
             <MapPin size={14} className="text-sky-400" />
             <span className="font-semibold text-zinc-100 text-sm">{uf}</span>
             <span className="text-zinc-500 text-xs">
               {rows.length} cliente{rows.length !== 1 ? 's' : ''}
             </span>
-          </div>
-          <table className="table">
-            {tableHead}
-            <tbody>
-              {sortByName(rows).map(c => (
-                <ClientRow key={c.id} c={c} alreadyContacted={contactedToday.has(c.id)} {...rowProps} />
-              ))}
-            </tbody>
-          </table>
+            {open
+              ? <ChevronUp size={14} className="ml-auto text-zinc-600" />
+              : <ChevronDown size={14} className="ml-auto text-zinc-600" />
+            }
+          </button>
+          {open && (
+            <table className="table">
+              {tableHead}
+              <tbody>
+                {sortByName(rows).map(c => (
+                  <ClientRow key={c.id} c={c} alreadyContacted={contactedToday.has(c.id)} {...rowProps} />
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )
     }
@@ -379,42 +403,60 @@ export function ClientsPage() {
         {/* Seção Atenção — clientes sem contato há mais de 3 dias */}
         {overdueGroup.length > 0 && (
           <div className="table-wrapper">
-            <div className="flex items-center gap-2 px-4 py-2 bg-amber-950 border-b border-amber-800">
+            <button
+              className="w-full flex items-center gap-2 px-4 py-2 bg-amber-950 border-b border-amber-800 hover:bg-amber-900/60 transition-colors text-left"
+              onClick={() => setAttentionOpen(v => !v)}
+            >
               <AlertTriangle size={14} className="text-amber-400" />
               <span className="font-semibold text-amber-300 text-sm">Atenção</span>
               <span className="text-amber-700 text-xs">
                 {overdueGroup.length} cliente{overdueGroup.length !== 1 ? 's' : ''} sem contato há mais de 3 dias
               </span>
-            </div>
-            <table className="table">
-              {tableHead}
-              <tbody>
-                {sortByName(overdueGroup).map(c => (
-                  <ClientRow key={c.id} c={c} isAttention alreadyContacted={contactedToday.has(c.id)} {...rowProps} />
-                ))}
-              </tbody>
-            </table>
+              {attentionOpen
+                ? <ChevronUp size={14} className="ml-auto text-amber-600" />
+                : <ChevronDown size={14} className="ml-auto text-amber-600" />
+              }
+            </button>
+            {attentionOpen && (
+              <table className="table">
+                {tableHead}
+                <tbody>
+                  {sortByName(overdueGroup).map(c => (
+                    <ClientRow key={c.id} c={c} isAttention alreadyContacted={contactedToday.has(c.id)} {...rowProps} />
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
 
         {/* Seção Novos — clientes criados hoje */}
         {newClients.length > 0 && (
           <div className="table-wrapper">
-            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-950 border-b border-emerald-800">
+            <button
+              className="w-full flex items-center gap-2 px-4 py-2 bg-emerald-950 border-b border-emerald-800 hover:bg-emerald-900/60 transition-colors text-left"
+              onClick={() => setNewClientsOpen(v => !v)}
+            >
               <Sparkles size={14} className="text-emerald-400" />
               <span className="font-semibold text-emerald-300 text-sm">Novos</span>
               <span className="text-emerald-600 text-xs">
                 {newClients.length} cliente{newClients.length !== 1 ? 's' : ''} cadastrado{newClients.length !== 1 ? 's' : ''} hoje
               </span>
-            </div>
-            <table className="table">
-              {tableHead}
-              <tbody>
-                {sortByName(newClients).map(c => (
-                  <ClientRow key={c.id} c={c} alreadyContacted={contactedToday.has(c.id)} {...rowProps} />
-                ))}
-              </tbody>
-            </table>
+              {newClientsOpen
+                ? <ChevronUp size={14} className="ml-auto text-emerald-700" />
+                : <ChevronDown size={14} className="ml-auto text-emerald-700" />
+              }
+            </button>
+            {newClientsOpen && (
+              <table className="table">
+                {tableHead}
+                <tbody>
+                  {sortByName(newClients).map(c => (
+                    <ClientRow key={c.id} c={c} alreadyContacted={contactedToday.has(c.id)} {...rowProps} />
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
 
