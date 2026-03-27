@@ -1,0 +1,51 @@
+import { AppError } from '../../utils/AppError.js'
+
+const SERPER_URL = 'https://google.serper.dev/maps'
+
+/**
+ * Searches Google Maps via Serper API for businesses matching the query.
+ *
+ * @param {string} query - Search query (e.g. "farmácias Curitiba PR")
+ * @returns {{ places: object[], creditsUsed: number }}
+ */
+export async function searchPlaces(query) {
+  const apiKey = process.env.SERPER_API_KEY
+  if (!apiKey) throw new AppError('SERPER_API_KEY não configurada no servidor.', 500)
+
+  let response
+  try {
+    response = await fetch(SERPER_URL, {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ q: query, gl: 'br', hl: 'pt-br', num: 20 }),
+    })
+  } catch {
+    throw new AppError('Falha ao conectar com a API Serper. Verifique sua conexão.', 502)
+  }
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}))
+    const msg  = (body.message || '').toLowerCase()
+
+    if (response.status === 403) {
+      // Distinguish between quota exhaustion and invalid key
+      if (msg.includes('limit') || msg.includes('quota') || msg.includes('exceeded')) {
+        throw new AppError('SERPER_LIMIT_REACHED', 402)
+      }
+      throw new AppError('Chave Serper inválida. Verifique a SERPER_API_KEY no servidor.', 403)
+    }
+
+    throw new AppError(`Erro na API Serper: ${response.status}`, 502)
+  }
+
+  const data = await response.json()
+  const creditsUsed = parseInt(response.headers.get('X-API-KEY-Usage-Count') || '0', 10)
+
+  return {
+    places: data.places || [],
+    creditsUsed,
+  }
+}

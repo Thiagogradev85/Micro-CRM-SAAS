@@ -1,0 +1,165 @@
+import { searchPlaces }   from '../modules/prospecting/serper.js'
+import { parseAddress, parsePhone } from '../modules/prospecting/addressParser.js'
+import { filterExisting }  from '../modules/prospecting/deduplication.js'
+import { ClientModel }     from '../models/ClientModel.js'
+import { AppError }        from '../utils/AppError.js'
+
+/**
+ * Detects if a URL belongs to a known social network.
+ * Returns { network: 'instagram'|'facebook'|null, handle: string|null }
+ */
+function detectSocial(url) {
+  if (!url) return { network: null, handle: null }
+  try {
+    const { hostname, pathname } = new URL(url)
+    const host = hostname.replace('www.', '')
+    if (host === 'instagram.com' || host === 'instagr.am') {
+      const handle = pathname.replace(/^\//, '').split('/')[0] || null
+      return { network: 'instagram', handle: handle ? `@${handle}` : null }
+    }
+    if (host === 'facebook.com' || host === 'fb.com') {
+      const handle = pathname.replace(/^\//, '').split('/')[0] || null
+      return { network: 'facebook', handle }
+    }
+  } catch {
+    // invalid URL — ignore
+  }
+  return { network: null, handle: null }
+}
+
+/**
+ * Returns a WhatsApp wa.me link for a Brazilian mobile number (11 digits with DDD).
+ * Returns null if the number does not look like a mobile.
+ */
+function buildWhatsappLink(digits) {
+  if (!digits) return null
+  // Brazilian mobile: 11 digits starting with 9 after DDD (2 digits)
+  const isMobile = digits.length === 11 && digits[2] === '9'
+  return isMobile ? `https://wa.me/55${digits}` : null
+}
+
+/**
+ * Maps a raw Serper place object into a structured prospect
+ * matching the clients table shape.
+ *
+ * @param {object} place       - Raw Serper place object
+ * @param {string} [ufFallback] - UF from the search params, used when address parsing fails
+ */
+function mapPlaceToProspect(place, ufFallback = null) {
+  const { logradouro, cidade, uf: ufParsed, cep } = parseAddress(place.address)
+  const uf    = ufParsed || (ufFallback ? ufFallback.toUpperCase() : null)
+  const phone = parsePhone(place.phone)
+
+  // Detect if the "website" field is actually a social media profile
+  const { network, handle } = detectSocial(place.website)
+  const site      = network ? null          : (place.website || null)
+  const instagram = network === 'instagram' ? (handle || place.website) : null
+  const facebook  = network === 'facebook'  ? (handle || place.website) : null
+
+  return {
+    nome:       place.title || null,
+    telefone:   phone,
+    whatsapp:   phone,
+    site,
+    instagram,
+    facebook,
+    logradouro: logradouro || null,
+    cidade:     cidade     || null,
+    uf:         uf         || null,
+    cep:        cep        || null,
+    // Metadata — not saved to DB, used only in the frontend card
+    _rating:       place.rating      || null,
+    _ratingCount:  place.ratingCount || null,
+    _type:         place.type        || null,
+    _address:      place.address     || null,
+    _whatsappLink: buildWhatsappLink(phone),
+    _ufFallback:   ufFallback ? ufFallback.toUpperCase() : null,
+  }
+}
+
+export const ProspectingController = {
+  /**
+   * POST /prospecting/search
+   * Body: { segment: string, uf?: string, city?: string }
+   *
+   * Searches Google Maps via Serper, parses results and filters out
+   * clients that already exist in the database.
+   */
+  async search(req, res, next) {
+    try {
+      const { segment, uf, city } = req.body
+
+      if (!segment?.trim()) throw new AppError('O campo "segmento" é obrigatório.', 400)
+
+      // Build Google Maps query — more specific = better results
+      const parts = [segment.trim()]
+      if (city?.trim()) parts.push(city.trim())
+      if (uf?.trim())   parts.push(uf.trim().toUpperCase())
+      const query = parts.join(' ')
+
+      const { places, creditsUsed } = await searchPlaces(query)
+
+      if (places.length === 0) {
+        return res.json({ total: 0, unique: [], duplicates: [], creditsUsed, query })
+      }
+
+      const prospects = places.map(p => mapPlaceToProspect(p, uf))
+      const { unique, duplicates } = await filterExisting(prospects)
+
+      res.json({
+        total:       places.length,
+        unique:      unique,
+        duplicates:  duplicates,
+        creditsUsed,
+        query,
+      })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  /**
+   * POST /prospecting/save
+   * Body: { prospects: object[] }
+   *
+   * Bulk-saves selected prospects as new clients (status: Prospecção).
+   * Skips any that are already in the DB (double-check server-side).
+   */
+  async save(req, res, next) {
+    try {
+      const { prospects } = req.body
+      if (!Array.isArray(prospects) || prospects.length === 0) {
+        throw new AppError('Nenhum prospect selecionado para salvar.', 400)
+      }
+
+      // Re-run deduplication server-side (never trust client-side alone)
+      const { unique } = await filterExisting(prospects)
+      if (unique.length === 0) {
+        return res.json({ saved: 0, message: 'Todos os prospects já existem na base.' })
+      }
+
+      let saved = 0
+      const errors = []
+
+      for (const prospect of unique) {
+        try {
+          // Strip frontend-only metadata fields before saving
+          const { _rating, _ratingCount, _type, _address, _whatsappLink, _ufFallback, _duplicate, ...clientData } = prospect
+
+          // uf is NOT NULL in the DB.
+          // Priority: parsed address UF → search UF (_ufFallback) → 'XX' (unknown state marker)
+          if (!clientData.uf) clientData.uf = _ufFallback || 'XX'
+
+          await ClientModel.create(clientData)
+          saved++
+        } catch (err) {
+          errors.push(`${prospect.nome}: ${err.message}`)
+        }
+      }
+
+      res.json({ saved, skipped: unique.length - saved, errors })
+    } catch (err) {
+      next(err)
+    }
+  },
+}

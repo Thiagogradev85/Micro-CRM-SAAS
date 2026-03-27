@@ -151,6 +151,10 @@ export const api = {
   emailSendTest:    (data)   => request('POST', '/email/send-test', data),
   emailSendBulk:    (data)   => request('POST', '/email/send-bulk', data),
 
+  // Prospecting
+  searchProspects: (data)      => request('POST', '/prospecting/search', data),
+  saveProspects:   (prospects) => request('POST', '/prospecting/save', { prospects }),
+
   // Daily Report
   getReportSummary: (date) => request('GET', `/daily-report/summary?date=${date}`),
   getReportDetails: (date) => request('GET', `/daily-report/details?date=${date}`),

@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-  Users, BookOpen, BarChart2, UserCheck, X, Menu, Package, MessageCircle, Mail
+  Users, BookOpen, BarChart2, UserCheck, X, Menu, Package, MessageCircle, Mail, Telescope
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -12,6 +12,7 @@ const links = [
   { to: '/whatsapp',     icon: MessageCircle, label: 'WhatsApp'         },
   { to: '/email',        icon: Mail,          label: 'E-mail em Massa'  },
   { to: '/daily-report', icon: BarChart2,     label: 'Relatório Diário' },
+  { to: '/prospecting',  icon: Telescope,     label: 'Prospecção'       },
 ]
 
 export function Sidebar() {
@@ -69,7 +70,7 @@ export function Sidebar() {
           ))}
         </nav>
 
-        <div className="px-4 text-xs text-zinc-600">v1.3.0</div>
+        <div className="px-4 text-xs text-zinc-600">v1.4.0</div>
       </aside>
     </>
   )

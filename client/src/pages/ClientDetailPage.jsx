@@ -111,7 +111,8 @@ export function ClientDetailPage() {
     try {
       await api.addObservation(id, obsText.trim())
       setObsText('')
-      await load()
+      const obs = await api.listObservations(id)
+      setObs(obs)
     } catch (err) {
       showModal({ type: 'error', title: 'Erro', message: err.message })
     }
