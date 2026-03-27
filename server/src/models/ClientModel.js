@@ -320,13 +320,21 @@ export const ClientModel = {
   },
 
   // Retorna clientes ativos que estão há mais de `days` dias sem contato.
-  // Exclui clientes criados hoje ("Novos") — eles ainda não tiveram chance de ser contatados.
+  // Exclui clientes criados hoje ("Novos") e clientes com status que indicam
+  // encerramento ou vínculo ativo (Fabricação própria, Fechado, Cliente Ativo, Cliente Inativo).
   async getOverdue(days = 3) {
     const { rows } = await db.query(
       `SELECT id, nome, cidade, uf, whatsapp, ultimo_contato, status_id
        FROM clients
        WHERE ativo = true
          AND created_at::date < (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+         AND (
+           status_id IS NULL
+           OR status_id NOT IN (
+             SELECT id FROM status
+             WHERE nome IN ('Fabricação própria', 'Fechado', 'Cliente Ativo', 'Cliente Inativo')
+           )
+         )
          AND (
            ultimo_contato < NOW() - ($1 || ' days')::INTERVAL
            OR (ultimo_contato IS NULL AND created_at < NOW() - ($1 || ' days')::INTERVAL)

@@ -28,11 +28,21 @@ function isCreatedToday(dateStr) {
 
 const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000
 
+// Status que indicam encerramento ou vínculo permanente — excluídos do lembrete de atenção.
+const OVERDUE_EXCLUDED_STATUSES = new Set([
+  'Fabricação própria',
+  'Fechado',
+  'Cliente Ativo',
+  'Cliente Inativo',
+])
+
 // Retorna true se o cliente está sem contato há mais de 3 dias.
 // Clientes criados hoje ("Novos") nunca são considerados em atraso.
+// Clientes com status de encerramento/vínculo permanente são ignorados.
 // Clientes sem nenhum contato só entram se foram criados há mais de 3 dias.
 function isOverdue(client) {
   if (isCreatedToday(client.created_at)) return false
+  if (OVERDUE_EXCLUDED_STATUSES.has(client.status_nome)) return false
   if (client.ultimo_contato) {
     return Date.now() - new Date(client.ultimo_contato) > THREE_DAYS_MS
   }
