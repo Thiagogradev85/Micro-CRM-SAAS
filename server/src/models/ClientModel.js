@@ -324,22 +324,22 @@ export const ClientModel = {
   // encerramento ou vínculo ativo (Fabricação própria, Fechado, Cliente Ativo, Cliente Inativo).
   async getOverdue(days = 3) {
     const { rows } = await db.query(
-      `SELECT id, nome, cidade, uf, whatsapp, ultimo_contato, status_id
-       FROM clients
-       WHERE ativo = true
-         AND created_at::date < (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
+      `SELECT c.id, c.nome, c.cidade, c.uf, c.whatsapp, c.ultimo_contato, c.status_id
+       FROM clients c
+       LEFT JOIN status s ON s.id = c.status_id
+       WHERE c.ativo = true
+         AND c.created_at::date < (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
          AND (
-           status_id IS NULL
-           OR status_id NOT IN (
-             SELECT id FROM status
-             WHERE nome IN ('Fabricação própria', 'Fechado', 'Cliente Ativo', 'Cliente Inativo')
+           s.nome IS NULL
+           OR unaccent(lower(s.nome)) NOT IN (
+             'fabricacao propria', 'fechado', 'cliente ativo', 'cliente inativo'
            )
          )
          AND (
-           ultimo_contato < NOW() - ($1 || ' days')::INTERVAL
-           OR (ultimo_contato IS NULL AND created_at < NOW() - ($1 || ' days')::INTERVAL)
+           c.ultimo_contato < NOW() - ($1 || ' days')::INTERVAL
+           OR (c.ultimo_contato IS NULL AND c.created_at < NOW() - ($1 || ' days')::INTERVAL)
          )
-       ORDER BY ultimo_contato ASC NULLS FIRST`,
+       ORDER BY c.ultimo_contato ASC NULLS FIRST`,
       [days]
     )
     return rows
