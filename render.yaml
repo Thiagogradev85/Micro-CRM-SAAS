@@ -4,7 +4,7 @@ services:
     name: leads-crm-api
     runtime: node
     rootDir: server
-    buildCommand: npm ci
+    buildCommand: npm install
     startCommand: node src/index.js
     envVars:
       - key: DATABASE_URL
