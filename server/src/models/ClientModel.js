@@ -321,7 +321,7 @@ export const ClientModel = {
 
   // Retorna clientes ativos que estão há mais de `days` dias sem contato.
   // Exclui clientes criados hoje ("Novos") e clientes com status que indicam
-  // encerramento ou vínculo ativo (Fabricação própria, Fechado, Cliente Ativo, Cliente Inativo).
+  // encerramento ou vínculo permanente (Fabricação Própria, Exclusividade).
   async getOverdue(days = 3) {
     const { rows } = await db.query(
       `SELECT c.id, c.nome, c.cidade, c.uf, c.whatsapp, c.ultimo_contato, c.status_id
@@ -332,7 +332,7 @@ export const ClientModel = {
          AND (
            s.nome IS NULL
            OR unaccent(lower(s.nome)) NOT IN (
-             'fabricacao propria', 'fechado', 'cliente ativo', 'cliente inativo'
+             'fabricacao propria', 'exclusividade'
            )
          )
          AND (
