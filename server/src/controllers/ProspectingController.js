@@ -94,19 +94,30 @@ export const ProspectingController = {
 
       if (!segment?.trim()) throw new AppError('O campo "segmento" é obrigatório.', 400)
 
-      // Build Google Maps query — more specific = better results
-      const parts = [segment.trim()]
-      if (city?.trim()) parts.push(city.trim())
-      if (uf?.trim())   parts.push(uf.trim().toUpperCase())
-      const query = parts.join(' ')
+      // Support multiple segments separated by commas — search each individually
+      const segments = segment.split(',').map(s => s.trim()).filter(Boolean)
 
-      const { places, creditsUsed } = await searchPlaces(query)
+      let allPlaces    = []
+      let totalCredits = 0
+      const queries    = []
 
-      if (places.length === 0) {
-        return res.json({ total: 0, unique: [], duplicates: [], creditsUsed, query })
+      for (const seg of segments) {
+        const parts = [seg]
+        if (city?.trim()) parts.push(city.trim())
+        if (uf?.trim())   parts.push(uf.trim().toUpperCase())
+        const query = parts.join(' ')
+        queries.push(query)
+
+        const { places, creditsUsed } = await searchPlaces(query)
+        allPlaces    = allPlaces.concat(places)
+        totalCredits += creditsUsed
       }
 
-      let prospects = places.map(p => mapPlaceToProspect(p, uf))
+      if (allPlaces.length === 0) {
+        return res.json({ total: 0, unique: [], duplicates: [], creditsUsed: totalCredits, query: queries.join(' | ') })
+      }
+
+      let prospects = allPlaces.map(p => mapPlaceToProspect(p, uf))
 
       // Filter by UF when specified: exclude results whose parsed address UF
       // differs from the requested UF (Google Maps often returns results from
@@ -118,14 +129,23 @@ export const ProspectingController = {
         )
       }
 
+      // Deduplicate within results (same name + same phone from different segment queries)
+      const seen = new Set()
+      prospects = prospects.filter(p => {
+        const key = `${(p.nome || '').toLowerCase()}|${p.telefone || ''}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+
       const { unique, duplicates } = await filterExisting(prospects)
 
       res.json({
-        total:       places.length,
+        total:       allPlaces.length,
         unique:      unique,
         duplicates:  duplicates,
-        creditsUsed,
-        query,
+        creditsUsed: totalCredits,
+        query:       queries.join(' | '),
       })
     } catch (err) {
       next(err)
