@@ -49,6 +49,8 @@ function mapPlaceToProspect(place, ufFallback = null) {
   const { logradouro, cidade, uf: ufParsed, cep } = parseAddress(place.address)
   const uf    = ufParsed || (ufFallback ? ufFallback.toUpperCase() : null)
   const phone = parsePhone(place.phone)
+  // Store parsed UF separately so the controller can filter by it
+  const _ufParsed = ufParsed ? ufParsed.toUpperCase() : null
 
   // Detect if the "website" field is actually a social media profile
   const { network, handle } = detectSocial(place.website)
@@ -74,6 +76,7 @@ function mapPlaceToProspect(place, ufFallback = null) {
     _address:      place.address     || null,
     _whatsappLink: buildWhatsappLink(phone),
     _ufFallback:   ufFallback ? ufFallback.toUpperCase() : null,
+    _ufParsed,
   }
 }
 
@@ -103,7 +106,18 @@ export const ProspectingController = {
         return res.json({ total: 0, unique: [], duplicates: [], creditsUsed, query })
       }
 
-      const prospects = places.map(p => mapPlaceToProspect(p, uf))
+      let prospects = places.map(p => mapPlaceToProspect(p, uf))
+
+      // Filter by UF when specified: exclude results whose parsed address UF
+      // differs from the requested UF (Google Maps often returns results from
+      // other states even when a state is included in the query).
+      if (uf?.trim()) {
+        const targetUF = uf.trim().toUpperCase()
+        prospects = prospects.filter(p =>
+          !p._ufParsed || p._ufParsed === targetUF
+        )
+      }
+
       const { unique, duplicates } = await filterExisting(prospects)
 
       res.json({
@@ -144,7 +158,7 @@ export const ProspectingController = {
       for (const prospect of unique) {
         try {
           // Strip frontend-only metadata fields before saving
-          const { _rating, _ratingCount, _type, _address, _whatsappLink, _ufFallback, _duplicate, ...clientData } = prospect
+          const { _rating, _ratingCount, _type, _address, _whatsappLink, _ufFallback, _ufParsed, _duplicate, ...clientData } = prospect
 
           // uf is NOT NULL in the DB.
           // Priority: parsed address UF → search UF (_ufFallback) → 'XX' (unknown state marker)

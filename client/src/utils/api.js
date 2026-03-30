@@ -139,7 +139,8 @@ export const api = {
   // WhatsApp / CRM Automático
   whatsappStatus:   ()                => request('GET',  '/whatsapp/status'),
   whatsappConnect:  ()                => request('POST', '/whatsapp/connect'),
-  whatsappDisconnect: ()              => request('POST', '/whatsapp/disconnect'),
+  whatsappDisconnect:    ()           => request('POST', '/whatsapp/disconnect'),
+  whatsappClearSession:  ()           => request('POST', '/whatsapp/clear-session'),
   whatsappPreview:  (params)          => request('GET',  '/whatsapp/preview?' + new URLSearchParams(params).toString()),
   whatsappSendBulk: (data)            => request('POST', '/whatsapp/send-bulk', data),
 

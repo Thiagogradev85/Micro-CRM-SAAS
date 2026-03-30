@@ -185,6 +185,9 @@ export function ClientsPage() {
   const [attentionOpen, setAttentionOpen] = useState(
     () => sessionStorage.getItem('section_attention') === 'true'
   )
+  const [listAttentionOpen, setListAttentionOpen] = useState(
+    () => sessionStorage.getItem('section_list_attention') === 'true'
+  )
   const [newClientsOpen, setNewClientsOpen] = useState(
     () => sessionStorage.getItem('section_newclients') === 'true'
   )
@@ -204,10 +207,10 @@ export function ClientsPage() {
 
       let params
       if (viewMode === 'state') {
-        // Modo agrupado: busca todos os clientes ordenados por UF
         params = { ...base, sort: 'uf', limit: 9999, page: 1 }
       } else {
-        params = { ...base }
+        // Lista: busca todos para poder exibir seção Atenção e paginar no frontend
+        params = { ...base, limit: 9999, page: 1 }
       }
 
       const result = await api.listClients(params)
@@ -303,6 +306,10 @@ export function ClientsPage() {
   useEffect(() => {
     sessionStorage.setItem('section_attention', attentionOpen)
   }, [attentionOpen])
+
+  useEffect(() => {
+    sessionStorage.setItem('section_list_attention', listAttentionOpen)
+  }, [listAttentionOpen])
 
   useEffect(() => {
     sessionStorage.setItem('section_newclients', newClientsOpen)
@@ -472,28 +479,72 @@ export function ClientsPage() {
   function renderListView() {
     if (clients.length === 0) return <EmptyState icon={Search} message="Nenhum cliente encontrado" />
 
+    const overdueGroup   = clients.filter(c => isOverdue(c))
+    const normalClients  = sortByName(clients.filter(c => !isOverdue(c)))
+    const totalPages     = Math.ceil(normalClients.length / 50)
+    const pageClients    = normalClients.slice((filters.page - 1) * 50, filters.page * 50)
+
     return (
       <>
-        <div className="table-wrapper">
-          <table className="table">
-            {tableHead}
-            <tbody>
-              {sortByName(clients).map(c => (
-                <ClientRow
-                  key={c.id}
-                  c={c}
-                  isAttention={isOverdue(c)}
-                  alreadyContacted={contactedToday.has(c.id)}
-                  {...rowProps}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {/* Seção Atenção */}
+        {overdueGroup.length > 0 && (
+          <div className="table-wrapper">
+            <button
+              className="w-full flex items-center gap-2 px-4 py-2 bg-amber-950 border-b border-amber-800 hover:bg-amber-900/60 transition-colors text-left"
+              onClick={() => setListAttentionOpen(v => !v)}
+            >
+              <AlertTriangle size={14} className="text-amber-400" />
+              <span className="font-semibold text-amber-300 text-sm">Atenção</span>
+              <span className="text-amber-700 text-xs">
+                {overdueGroup.length} cliente{overdueGroup.length !== 1 ? 's' : ''} sem contato há mais de 3 dias
+              </span>
+              {listAttentionOpen
+                ? <ChevronUp size={14} className="ml-auto text-amber-600" />
+                : <ChevronDown size={14} className="ml-auto text-amber-600" />
+              }
+            </button>
+            {listAttentionOpen && (
+              <table className="table">
+                {tableHead}
+                <tbody>
+                  {sortByName(overdueGroup).map(c => (
+                    <ClientRow key={c.id} c={c} isAttention alreadyContacted={contactedToday.has(c.id)} {...rowProps} />
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* Tabela principal (sem clientes em atraso) */}
+        {pageClients.length > 0 && (
+          <div className="table-wrapper">
+            <table className="table">
+              {tableHead}
+              <tbody>
+                {pageClients.map(c => (
+                  <ClientRow
+                    key={c.id}
+                    c={c}
+                    alreadyContacted={contactedToday.has(c.id)}
+                    {...rowProps}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Paginação */}
-        {total > 50 && (
+        {normalClients.length > 50 && (
           <div className="flex gap-2 justify-end text-sm">
+            <button
+              className="btn-secondary btn-sm"
+              disabled={filters.page <= 1}
+              onClick={() => setFilters(f => ({ ...f, page: 1 }))}
+            >
+              « Primeira
+            </button>
             <button
               className="btn-secondary btn-sm"
               disabled={filters.page <= 1}
@@ -502,11 +553,11 @@ export function ClientsPage() {
               ← Anterior
             </button>
             <span className="px-3 py-1 text-zinc-400">
-              Página {filters.page} de {Math.ceil(total / 50)}
+              Página {filters.page} de {totalPages}
             </span>
             <button
               className="btn-secondary btn-sm"
-              disabled={filters.page >= Math.ceil(total / 50)}
+              disabled={filters.page >= totalPages}
               onClick={() => setFilters(f => ({ ...f, page: f.page + 1 }))}
             >
               Próxima →

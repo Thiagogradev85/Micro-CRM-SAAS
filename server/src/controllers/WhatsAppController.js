@@ -28,6 +28,16 @@ export const WhatsAppController = {
     }
   },
 
+  // POST /whatsapp/clear-session
+  async clearSession(req, res, next) {
+    try {
+      await whatsAppService.clearSession()
+      res.json({ message: 'Sessão apagada com sucesso.' })
+    } catch (err) {
+      next(err)
+    }
+  },
+
   // GET /whatsapp/preview?status_id=&ufs=MT,MS,PR
   // Retorna clientes que receberão a mensagem (com WhatsApp válido)
   async preview(req, res, next) {

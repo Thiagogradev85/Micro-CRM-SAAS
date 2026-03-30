@@ -8,6 +8,7 @@ import { Boom } from '@hapi/boom'
 import qrcode from 'qrcode'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { rm } from 'fs/promises'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const AUTH_DIR = join(__dirname, '..', '..', '..', '..', '.whatsapp-session')
@@ -18,8 +19,12 @@ class WhatsAppService {
     this.qrCodeBase64 = null
     this.status = 'disconnected' // 'disconnected' | 'connecting' | 'connected'
     this.phone = null
+    this.error = null
+    this._reconnectAttempts = 0
     this._listeners = {}
   }
+
+  static MAX_RECONNECT = 3
 
   on(event, fn) {
     if (!this._listeners[event]) this._listeners[event] = []
@@ -34,9 +39,22 @@ class WhatsAppService {
     if (this.status === 'connected') return
     this.status = 'connecting'
     this.qrCodeBase64 = null
+    this.error = null
+    this._reconnectAttempts = 0
+    await this._doConnect()
+  }
 
-    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR)
-    const { version } = await fetchLatestBaileysVersion()
+  async _doConnect() {
+    let state, saveCreds, version
+    try {
+      ;({ state, saveCreds } = await useMultiFileAuthState(AUTH_DIR))
+      ;({ version } = await fetchLatestBaileysVersion())
+    } catch (err) {
+      console.error('[WhatsApp] Falha ao inicializar conexão:', err.message)
+      this.status = 'disconnected'
+      this.error = `Falha ao iniciar conexão: ${err.message}`
+      return
+    }
 
     this.sock = makeWASocket({
       version,
@@ -65,14 +83,31 @@ class WhatsAppService {
       }
 
       if (connection === 'close') {
-        const code = new Boom(lastDisconnect?.error)?.output?.statusCode
-        const shouldReconnect = code !== DisconnectReason.loggedOut
-        console.log('[WhatsApp] Desconectado, código:', code, '— reconectar:', shouldReconnect)
+        const boom = new Boom(lastDisconnect?.error)
+        const code = boom?.output?.statusCode
+        const loggedOut = code === DisconnectReason.loggedOut
+        const errMsg = lastDisconnect?.error?.message || null
+        console.log('[WhatsApp] Desconectado, código:', code, '— loggedOut:', loggedOut, errMsg ? `— erro: ${errMsg}` : '')
         this.status = 'disconnected'
         this.phone = null
         this.emit('disconnected', { code })
-        if (shouldReconnect) {
-          setTimeout(() => this.connect(), 3000)
+
+        if (loggedOut) {
+          // Sessão encerrada pelo WhatsApp — não reconecta, mostra erro
+          this.error = 'Sessão encerrada pelo WhatsApp. Clique em "Limpar sessão" e reconecte.'
+        } else {
+          this._reconnectAttempts++
+          if (this._reconnectAttempts <= WhatsAppService.MAX_RECONNECT) {
+            console.log(`[WhatsApp] Tentativa de reconexão ${this._reconnectAttempts}/${WhatsAppService.MAX_RECONNECT}...`)
+            setTimeout(() => {
+              // Não reseta _reconnectAttempts para manter o contador
+              this.status = 'connecting'
+              this.error = null
+              this._doConnect()
+            }, 3000)
+          } else {
+            this.error = `Falha ao conectar após ${WhatsAppService.MAX_RECONNECT} tentativas. Erro: ${errMsg || `código ${code}`}. Tente limpar a sessão e reconectar.`
+          }
         }
       }
     })
@@ -86,7 +121,26 @@ class WhatsAppService {
     this.status = 'disconnected'
     this.phone = null
     this.qrCodeBase64 = null
+    this.error = null
+    this._reconnectAttempts = 0
     this.emit('disconnected', { code: 'manual' })
+  }
+
+  async clearSession() {
+    // Para a conexão atual sem tentar reconectar
+    if (this.sock) {
+      this.sock.ev.removeAllListeners()
+      await this.sock.ws?.close?.()
+      this.sock = null
+    }
+    this.status = 'disconnected'
+    this.phone = null
+    this.qrCodeBase64 = null
+    this.error = null
+    this._reconnectAttempts = 0
+    // Remove os arquivos de sessão
+    await rm(AUTH_DIR, { recursive: true, force: true })
+    console.log('[WhatsApp] Sessão limpa.')
   }
 
   getStatus() {
@@ -94,6 +148,7 @@ class WhatsAppService {
       status: this.status,
       phone: this.phone,
       qrCode: this.qrCodeBase64,
+      error: this.error,
     }
   }
 

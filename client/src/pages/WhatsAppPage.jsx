@@ -110,6 +110,14 @@ export function WhatsAppPage() {
     return () => clearInterval(interval)
   }, [pollStatus])
 
+  // Exibe erro de conexão via modal quando o backend reportar um problema
+  useEffect(() => {
+    if (status.error) {
+      showModal({ type: 'error', title: 'Erro ao conectar WhatsApp', message: status.error })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status.error])
+
   async function handleConnect() {
     try {
       await api.whatsappConnect()
@@ -123,6 +131,16 @@ export function WhatsAppPage() {
       setPreview(null)
       setSendResult(null)
       showModal({ type: 'success', title: 'Desconectado', message: 'WhatsApp desconectado.' })
+    } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
+  }
+
+  async function handleClearSession() {
+    try {
+      await api.whatsappClearSession()
+      setPreview(null)
+      setSendResult(null)
+      showModal({ type: 'success', title: 'Sessão apagada', message: 'Sessão removida. Clique em "Conectar WhatsApp" para gerar um novo QR Code.' })
+      await pollStatus()
     } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
   }
 
@@ -190,12 +208,18 @@ export function WhatsAppPage() {
             }
           </h2>
           <div className="flex gap-2">
-            {isConnected
-              ? <button className="btn-danger btn-sm" onClick={handleDisconnect}>Desconectar</button>
-              : <button className="btn-primary btn-sm" onClick={handleConnect} disabled={isConnecting}>
+            {isConnected ? (
+              <button className="btn-danger btn-sm" onClick={handleDisconnect}>Desconectar</button>
+            ) : (
+              <>
+                <button className="btn-primary btn-sm" onClick={handleConnect} disabled={isConnecting}>
                   {isConnecting ? 'Aguardando QR...' : 'Conectar WhatsApp'}
                 </button>
-            }
+                <button className="btn-secondary btn-sm" onClick={handleClearSession} title="Apaga os arquivos de sessão salvos e permite reconectar do zero">
+                  Limpar sessão
+                </button>
+              </>
+            )}
           </div>
         </div>
 

@@ -455,7 +455,9 @@ Equipe de Vendas`
           <div className="bg-zinc-800/60 rounded-lg p-3 space-y-2">
             <p className="text-sm font-medium text-zinc-200">
               {preview.total === 0
-                ? 'Nenhum cliente com e-mail encontrado para esses filtros.'
+                ? preview.noEmail > 0
+                  ? <span className="text-amber-400">Nenhum cliente com e-mail cadastrado.<span className="font-normal text-zinc-400"> {preview.noEmail} cliente{preview.noEmail !== 1 ? 's' : ''} encontrado{preview.noEmail !== 1 ? 's' : ''} nesse filtro, mas sem e-mail.</span></span>
+                  : 'Nenhum cliente encontrado para esses filtros.'
                 : <><span className="text-sky-400 font-bold">{preview.total}</span> clientes receberão o e-mail:</>
               }
             </p>

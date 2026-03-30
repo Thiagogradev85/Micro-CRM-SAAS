@@ -40,8 +40,9 @@ export const EmailController = {
         limit: 9999,
         page: 1,
       })
-      const clients = result.data.filter(c => c.email)
-      res.json({ total: clients.length, clients })
+      const clients    = result.data.filter(c => c.email)
+      const noEmail    = result.data.length - clients.length
+      res.json({ total: clients.length, clients, noEmail })
     } catch (err) {
       next(err)
     }
