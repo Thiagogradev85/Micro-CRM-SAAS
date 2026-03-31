@@ -1,7 +1,7 @@
 import db from '../db/db.js'
 
 export const ClientModel = {
-  async list({ uf, status_id, ativo, search, page = 1, limit = 50, sort = 'created_at' } = {}) {
+  async list({ uf, status_id, ativo, ja_cliente, search, page = 1, limit = 50, sort = 'created_at' } = {}) {
     const conditions = []
     const params = []
 
@@ -23,6 +23,10 @@ export const ClientModel = {
     if (ativo !== undefined) {
       params.push(ativo)
       conditions.push(`c.ativo = $${params.length}`)
+    }
+    if (ja_cliente !== undefined) {
+      params.push(ja_cliente)
+      conditions.push(`c.ja_cliente = $${params.length}`)
     }
     if (search) {
       // Divide em palavras, cada uma deve casar em pelo menos um campo (AND entre palavras)
@@ -117,6 +121,7 @@ export const ClientModel = {
     const complemento = s(data.complemento)
     const bairro     = s(data.bairro)
     const cep        = s(data.cep)
+    const cnpj       = s(data.cnpj)
     const nota       = data.nota || null
     const catalog_id = data.catalog_id || null
 
@@ -138,13 +143,13 @@ export const ClientModel = {
     const { rows } = await db.query(`
       INSERT INTO clients
         (nome, cidade, uf, whatsapp, telefone, site, email, instagram, facebook, twitter, linkedin,
-         responsavel, logradouro, numero, complemento, bairro, cep,
-         nota, status_id, catalog_id, seller_id)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+         responsavel, logradouro, numero, complemento, bairro, cep, cnpj,
+         nota, status_id, catalog_id, seller_id, ja_cliente)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
       RETURNING *
     `, [nom, cidade, uf, whatsapp, telefone, site, email, instagram, facebook, twitter, linkedin,
-        responsavel, logradouro, numero, complemento, bairro, cep,
-        notaFinal, status_id, catalog_id, seller_id])
+        responsavel, logradouro, numero, complemento, bairro, cep, cnpj,
+        notaFinal, status_id, catalog_id, seller_id, data.ja_cliente ?? false])
 
     const client = rows[0]
 
@@ -162,8 +167,8 @@ export const ClientModel = {
   async update(id, data) {
     const {
       nome, cidade, uf, whatsapp, telefone, site, email, instagram, facebook, twitter, linkedin,
-      responsavel, logradouro, numero, complemento, bairro, cep,
-      ativo, nota, status_id, catalog_id, seller_id
+      responsavel, logradouro, numero, complemento, bairro, cep, cnpj,
+      ativo, nota, status_id, catalog_id, seller_id, ja_cliente
     } = data
 
     // Verifica status anterior para disparar eventos
@@ -188,17 +193,19 @@ export const ClientModel = {
         complemento = COALESCE($15, complemento),
         bairro      = COALESCE($16, bairro),
         cep         = COALESCE($17, cep),
-        ativo       = COALESCE($18, ativo),
-        nota        = COALESCE($19, nota),
-        status_id   = COALESCE($20, status_id),
-        catalog_id  = COALESCE($21, catalog_id),
-        seller_id   = COALESCE($22, seller_id),
+        cnpj        = COALESCE($18, cnpj),
+        ativo       = COALESCE($19, ativo),
+        nota        = COALESCE($20, nota),
+        status_id   = COALESCE($21, status_id),
+        catalog_id  = COALESCE($22, catalog_id),
+        seller_id   = COALESCE($23, seller_id),
+        ja_cliente  = COALESCE($25, ja_cliente),
         updated_at  = NOW()
-      WHERE id = $23
+      WHERE id = $24
       RETURNING *
     `, [nome, cidade, uf, whatsapp, telefone, site, email, instagram, facebook, twitter, linkedin,
-        responsavel, logradouro, numero, complemento, bairro, cep,
-        ativo, nota, status_id, catalog_id, seller_id, id])
+        responsavel, logradouro, numero, complemento, bairro, cep, cnpj,
+        ativo, nota, status_id, catalog_id, seller_id, id, ja_cliente])
 
     const updated = rows[0]
     if (!updated) return null
@@ -345,79 +352,69 @@ export const ClientModel = {
     return rows
   },
 
-  // Importação em lote (Excel) — registra new_client para cada novo
+  // Importação em lote (Excel) — cada registro usa o pool diretamente (sem transação global)
   async bulkUpsert(records) {
-    const client = await db.connect()
     const results = { imported: 0, updated: 0, skipped: 0, errors: [] }
-    try {
-      await client.query('BEGIN')
 
-      // Busca o id de "Prospecção" uma vez para usar em todos os inserts
-      const { rows: stRows } = await client.query(
-        `SELECT id FROM status WHERE nome = 'Prospecção' LIMIT 1`
-      )
-      const prospeccaoId = stRows[0]?.id || null
+    // Busca o id de "Prospecção" uma vez para usar em todos os inserts
+    const { rows: stRows } = await db.query(
+      `SELECT id FROM status WHERE nome = 'Prospecção' LIMIT 1`
+    )
+    const prospeccaoId = stRows[0]?.id || null
 
-      for (const rec of records) {
-        try {
-          if (!rec.nome || !rec.uf) {
-            results.skipped++
-            continue
-          }
-          // Tenta atualizar por whatsapp ou nome+uf
-          const { rows: existing } = await client.query(
-            `SELECT id FROM clients WHERE (whatsapp = $1 AND $1 IS NOT NULL) OR (LOWER(nome) = LOWER($2) AND uf = $3) LIMIT 1`,
-            [rec.whatsapp || null, rec.nome, rec.uf.toUpperCase()]
-          )
-          if (existing.length > 0) {
-            // Só preenche campos que estão vazios no banco — nunca sobrescreve dados existentes
-            await client.query(
-              `UPDATE clients SET
-                nome      = $1,
-                cidade    = COALESCE(NULLIF(cidade, ''),    $2),
-                uf        = COALESCE(NULLIF(uf, ''),        $3),
-                whatsapp  = COALESCE(NULLIF(whatsapp, ''),  $4),
-                site      = COALESCE(NULLIF(site, ''),      $5),
-                instagram = COALESCE(NULLIF(instagram, ''), $6),
-                updated_at = NOW()
-               WHERE id = $7`,
-              [rec.nome, rec.cidade || null, rec.uf || null, rec.whatsapp || null, rec.site || null, rec.instagram || null, existing[0].id]
-            )
-            results.updated++
-          } else {
-            // Atribui vendedor automaticamente pelo UF
-            const { rows: sellerRows } = await client.query(
-              `SELECT seller_id FROM seller_ufs WHERE uf = $1 LIMIT 1`,
-              [rec.uf.toUpperCase()]
-            )
-            const seller_id = sellerRows[0]?.seller_id || null
-
-            // Sem WhatsApp e sem Instagram → nota 1 automaticamente
-            const nota = (!rec.whatsapp && !rec.instagram) ? 1 : null
-
-            const { rows: inserted } = await client.query(
-              `INSERT INTO clients (nome, cidade, uf, whatsapp, site, instagram, nota, seller_id, status_id)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-              [rec.nome, rec.cidade, rec.uf.toUpperCase(), rec.whatsapp, rec.site, rec.instagram, nota, seller_id, prospeccaoId]
-            )
-            await client.query(
-              `INSERT INTO daily_report_events (client_id, event_type, event_date)
-               VALUES ($1, 'new_client', (NOW() AT TIME ZONE 'America/Sao_Paulo')::date)
-               ON CONFLICT DO NOTHING`,
-              [inserted[0].id]
-            )
-            results.imported++
-          }
-        } catch (e) {
-          results.errors.push(e.message)
+    for (const rec of records) {
+      try {
+        if (!rec.nome || !rec.uf) {
+          results.skipped++
+          continue
         }
+        // Tenta atualizar por whatsapp ou nome+uf
+        const { rows: existing } = await db.query(
+          `SELECT id FROM clients WHERE (whatsapp = $1 AND $1 IS NOT NULL) OR (LOWER(nome) = LOWER($2) AND uf = $3) LIMIT 1`,
+          [rec.whatsapp || null, rec.nome, rec.uf.toUpperCase()]
+        )
+        if (existing.length > 0) {
+          // Só preenche campos que estão vazios no banco — nunca sobrescreve dados existentes
+          await db.query(
+            `UPDATE clients SET
+              nome      = $1,
+              cidade    = COALESCE(NULLIF(cidade, ''),    $2),
+              uf        = COALESCE(NULLIF(uf, ''),        $3),
+              whatsapp  = COALESCE(NULLIF(whatsapp, ''),  $4),
+              site      = COALESCE(NULLIF(site, ''),      $5),
+              instagram = COALESCE(NULLIF(instagram, ''), $6),
+              updated_at = NOW()
+             WHERE id = $7`,
+            [rec.nome, rec.cidade || null, rec.uf || null, rec.whatsapp || null, rec.site || null, rec.instagram || null, existing[0].id]
+          )
+          results.updated++
+        } else {
+          // Atribui vendedor automaticamente pelo UF
+          const { rows: sellerRows } = await db.query(
+            `SELECT seller_id FROM seller_ufs WHERE uf = $1 LIMIT 1`,
+            [rec.uf.toUpperCase()]
+          )
+          const seller_id = sellerRows[0]?.seller_id || null
+
+          // Sem WhatsApp e sem Instagram → nota 1 automaticamente
+          const nota = (!rec.whatsapp && !rec.instagram) ? 1 : null
+
+          const { rows: inserted } = await db.query(
+            `INSERT INTO clients (nome, cidade, uf, whatsapp, site, instagram, nota, seller_id, status_id, ja_cliente)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+            [rec.nome, rec.cidade, rec.uf.toUpperCase(), rec.whatsapp, rec.site, rec.instagram, nota, seller_id, prospeccaoId, false]
+          )
+          await db.query(
+            `INSERT INTO daily_report_events (client_id, event_type, event_date)
+             VALUES ($1, 'new_client', (NOW() AT TIME ZONE 'America/Sao_Paulo')::date)
+             ON CONFLICT DO NOTHING`,
+            [inserted[0].id]
+          )
+          results.imported++
+        }
+      } catch (e) {
+        results.errors.push({ nome: rec.nome, uf: rec.uf, error: e.message })
       }
-      await client.query('COMMIT')
-    } catch (err) {
-      await client.query('ROLLBACK')
-      throw err
-    } finally {
-      client.release()
     }
     return results
   },

@@ -100,6 +100,7 @@ export function ClientDetailPage() {
       await api.updateClient(id, {
         nome:        form.nome,
         responsavel: form.responsavel,
+        cnpj:        form.cnpj,
         cidade:      form.cidade,
         uf:          form.uf,
         cep:         form.cep,
@@ -120,6 +121,7 @@ export function ClientDetailPage() {
         catalog_id:  form.catalog_id ? parseInt(form.catalog_id) : null,
         seller_id:   form.seller_id  ? parseInt(form.seller_id)  : null,
         ativo:       form.ativo,
+        ja_cliente:  form.ja_cliente,
       })
       showModal({ type: 'success', title: 'Sucesso', message: 'Cliente atualizado!' })
       setEditing(false)
@@ -218,6 +220,11 @@ export function ClientDetailPage() {
               <p className="text-sm text-zinc-400 mt-0.5">Resp: {client.responsavel}</p>
             )}
             <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {client.ja_cliente && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold bg-green-600/20 text-green-400 border border-green-600/30">
+                  ✓ Cliente
+                </span>
+              )}
               {currentStatus && (
                 <span style={statusPill(currentStatus.cor)}>{currentStatus.nome}</span>
               )}
@@ -261,6 +268,10 @@ export function ClientDetailPage() {
               <div className="sm:col-span-2">
                 <label className="label">Responsável</label>
                 {inp('responsavel', 'Nome do contato')}
+              </div>
+              <div>
+                <label className="label">CNPJ</label>
+                {inp('cnpj', '00.000.000/0000-00')}
               </div>
             </div>
 
@@ -378,7 +389,12 @@ export function ClientDetailPage() {
                   {sellers.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
                 </select>
               </div>
-              <div className="flex items-center gap-2 sm:col-span-2">
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="ja_cliente_edit" checked={!!form.ja_cliente}
+                  onChange={e => set('ja_cliente', e.target.checked)} className="accent-green-500" />
+                <label htmlFor="ja_cliente_edit" className="text-sm text-zinc-300">Já é cliente (realizou compra)</label>
+              </div>
+              <div className="flex items-center gap-2">
                 <input type="checkbox" id="ativo_edit" checked={!!form.ativo}
                   onChange={e => set('ativo', e.target.checked)} className="accent-sky-500" />
                 <label htmlFor="ativo_edit" className="text-sm text-zinc-300">Cliente ativo</label>
@@ -396,6 +412,14 @@ export function ClientDetailPage() {
                 <p className="text-zinc-200 flex items-start gap-1">
                   <MapPin size={13} className="mt-0.5 shrink-0 text-zinc-500" /> {endereco}
                 </p>
+              </div>
+            )}
+
+            {/* CNPJ em destaque */}
+            {client.cnpj && (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 w-fit">
+                <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">CNPJ</span>
+                <span className="text-sm font-mono font-semibold text-zinc-200">{client.cnpj}</span>
               </div>
             )}
 

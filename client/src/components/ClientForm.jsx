@@ -4,11 +4,11 @@ import { UFS, NOTAS } from '../utils/constants.js'
 import { useAppModalError } from '../hooks/useAppModalError.js'
 
 const EMPTY = {
-  nome: '', responsavel: '',
+  nome: '', responsavel: '', cnpj: '',
   cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '',
   whatsapp: '', telefone: '', email: '', site: '',
   instagram: '', facebook: '', twitter: '', linkedin: '',
-  nota: '', status_id: '', catalog_id: '', seller_id: '', ativo: true
+  nota: '', status_id: '', catalog_id: '', seller_id: '', ativo: true, ja_cliente: false
 }
 
 export function ClientForm({ initial = {}, onSave, onCancel }) {
@@ -91,6 +91,10 @@ export function ClientForm({ initial = {}, onSave, onCancel }) {
           <div className="sm:col-span-2">
             <label className="label">Responsável</label>
             {inp('responsavel', 'Nome do contato')}
+          </div>
+          <div>
+            <label className="label">CNPJ</label>
+            {inp('cnpj', '00.000.000/0000-00')}
           </div>
         </div>
 
@@ -207,6 +211,11 @@ export function ClientForm({ initial = {}, onSave, onCancel }) {
               <option value="">Nenhum</option>
               {sellers.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
             </select>
+          </div>
+          <div className="flex items-center gap-2 sm:col-span-2">
+            <input type="checkbox" id="ja_cliente" checked={!!form.ja_cliente}
+              onChange={e => set('ja_cliente', e.target.checked)} className="accent-green-500" />
+            <label htmlFor="ja_cliente" className="text-sm text-zinc-300">Já é cliente (realizou compra)</label>
           </div>
           {initial.id && (
             <div className="flex items-center gap-2 sm:col-span-2">

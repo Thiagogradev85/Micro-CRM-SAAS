@@ -72,6 +72,9 @@ function ClientRow({ c, alreadyContacted, isAttention, onContact, onDeactivate, 
             <AlertTriangle size={10} /> Atenção
           </span>
         )}
+        {c.ja_cliente && (
+          <span className="ml-2 inline-block px-1.5 py-0.5 rounded text-xs font-bold bg-green-600/20 text-green-400 border border-green-600/30">Cliente</span>
+        )}
         {isCreatedToday(c.created_at) && (
           <span className="ml-2 inline-block px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Novo</span>
         )}
@@ -204,7 +207,7 @@ export function ClientsPage() {
   const { overdueClients, showModal: showOverdueModal, dismiss: dismissOverdue } = useOverdueReminder(attentionDays)
 
   const [filters, setFilters] = useState(
-    () => savedFilters() || { search: '', status_id: '', uf: '', ativo: '', page: 1 }
+    () => savedFilters() || { search: '', status_id: '', uf: '', ativo: '', ja_cliente: '', page: 1 }
   )
 
   const load = useCallback(async () => {
@@ -358,7 +361,13 @@ export function ClientsPage() {
       if (result.imported > 0) parts.push(`${result.imported} novo${result.imported !== 1 ? 's' : ''}`)
       if (result.updated  > 0) parts.push(`${result.updated} atualizado${result.updated  !== 1 ? 's' : ''}`)
       if (result.skipped  > 0) parts.push(`${result.skipped} ignorado${result.skipped   !== 1 ? 's' : ''}`)
-      showModal({ type: 'success', title: 'Importação concluída', message: `Importação concluída: ${parts.join(' · ')}` })
+      const hasErrors = result.errors?.length > 0
+      showModal({
+        type: hasErrors && result.imported === 0 ? 'error' : 'success',
+        title: 'Importação concluída',
+        message: parts.length ? `Importação concluída: ${parts.join(' · ')}` : 'Nenhum registro importado.',
+        details: hasErrors ? [`${result.errors.length} registro(s) com erro — verifique o arquivo`] : undefined,
+      })
       load()
     } catch (err) {
       showModal({ type: 'error', title: 'Erro na importação', message: err.message })
@@ -406,11 +415,11 @@ export function ClientsPage() {
     })
   }
 
-  const EMPTY_FILTERS = { search: '', status_id: '', uf: '', ativo: '', page: 1 }
+  const EMPTY_FILTERS = { search: '', status_id: '', uf: '', ativo: '', ja_cliente: '', page: 1 }
 
   const setFilter = (k, v) => setFilters(f => ({ ...f, [k]: v, page: 1 }))
 
-  const hasActiveFilters = filters.search || filters.status_id || filters.uf || filters.ativo
+  const hasActiveFilters = filters.search || filters.status_id || filters.uf || filters.ativo || filters.ja_cliente
 
   function clearFilters() {
     setFilters(EMPTY_FILTERS)
@@ -825,6 +834,15 @@ export function ClientsPage() {
           <option value="">Todos</option>
           <option value="true">Ativos</option>
           <option value="false">Inativos</option>
+        </select>
+        <select
+          className="select w-auto"
+          value={filters.ja_cliente}
+          onChange={e => setFilter('ja_cliente', e.target.value)}
+        >
+          <option value="">Prospects + Clientes</option>
+          <option value="true">Só Clientes</option>
+          <option value="false">Só Prospects</option>
         </select>
 
         {/* Toggle view mode */}

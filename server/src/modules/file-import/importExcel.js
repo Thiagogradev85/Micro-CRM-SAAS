@@ -126,10 +126,27 @@ export async function importExcel(fileOrBuffer) {
 
     const sheetUF = extractUF(sheetName)
 
+    // Encontra a linha de cabeçalho como a que tem mais colunas reconhecidas
+    const HEADER_KEYWORDS = ['nome','name','loja','empresa','cliente','fantasia','razao','cidade','city',
+      'uf','estado','whatsapp','wpp','celular','telefone','fone','tel','phone','zap','site','website',
+      'instagram','ig','insta','endereco','endereço','logradouro','bairro','cep','cnpj']
+
     let headerRowIdx = 0
-    for (let i = 0; i < Math.min(5, rows.length); i++) {
-      const hasText = rows[i].some(c => isNaN(c) && String(c).trim().length > 1)
-      if (hasText) { headerRowIdx = i; break }
+    let bestScore = -1
+    for (let i = 0; i < Math.min(10, rows.length); i++) {
+      const score = rows[i].filter(c => {
+        const n = normalize(String(c))
+        return HEADER_KEYWORDS.some(k => n.includes(k))
+      }).length
+      if (score > bestScore) { bestScore = score; headerRowIdx = i }
+    }
+    // Fallback: se nenhuma linha tem colunas reconhecidas, usa primeira com texto
+    if (bestScore === 0) {
+      for (let i = 0; i < Math.min(10, rows.length); i++) {
+        if (rows[i].some(c => isNaN(c) && String(c).trim().length > 1)) {
+          headerRowIdx = i; break
+        }
+      }
     }
 
     const headers = rows[headerRowIdx]

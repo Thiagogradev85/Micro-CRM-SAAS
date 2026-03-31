@@ -29,11 +29,12 @@ function readFileFromRequest(req) {
 export const ClientController = {
   async list(req, res, next) {
     try {
-      const { uf, status_id, ativo, search, page, limit, sort } = req.query
+      const { uf, status_id, ativo, ja_cliente, search, page, limit, sort } = req.query
       const result = await ClientModel.list({
         uf,
         status_id: status_id ? parseInt(status_id) : undefined,
         ativo: ativo !== undefined && ativo !== '' ? ativo === 'true' : undefined,
+        ja_cliente: ja_cliente !== undefined && ja_cliente !== '' ? ja_cliente === 'true' : undefined,
         search,
         page: page ? parseInt(page) : 1,
         limit: limit ? parseInt(limit) : 50,
