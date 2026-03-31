@@ -83,7 +83,7 @@ export function AppModal({ type = 'info', title, message, details = [], actions,
         {actions?.length > 0 ? (
           <div className="flex flex-col gap-2">
             {actions.map((a, i) => (
-              <button key={i} className={ACTION_CLASS[a.variant ?? 'primary']} onClick={a.onClick}>
+              <button key={i} className={ACTION_CLASS[a.variant ?? 'primary']} onClick={() => { onClose(); a.onClick() }}>
                 {a.label}
               </button>
             ))}

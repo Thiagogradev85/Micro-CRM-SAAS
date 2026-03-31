@@ -28,6 +28,7 @@ export const DailyReportModel = {
   async getDetails(date) {
     const { rows } = await db.query(`
       SELECT
+        e.id         AS event_id,
         e.event_type,
         e.created_at,
         c.id         AS client_id,
@@ -47,6 +48,13 @@ export const DailyReportModel = {
       catalog_requested: rows.filter(r => r.event_type === 'catalog_requested'),
       purchased:         rows.filter(r => r.event_type === 'purchased'),
     }
+  },
+
+  async deleteEvent(id) {
+    const { rowCount } = await db.query(
+      `DELETE FROM daily_report_events WHERE id = $1`, [id]
+    )
+    return rowCount > 0
   },
 
   // Lista datas que têm eventos (para o calendário/histórico)

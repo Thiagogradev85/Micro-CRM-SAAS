@@ -7,9 +7,10 @@ import {
   ChevronDown, ChevronUp, CopyX, Settings
 } from 'lucide-react'
 
-const FILTERS_KEY            = 'clients_filters'
-const VIEW_KEY               = 'clients_viewMode'
+const FILTERS_KEY               = 'clients_filters'
+const VIEW_KEY                  = 'clients_viewMode'
 const ATTENTION_IGNORED_UFS_KEY = 'attention_ignored_ufs'
+const ATTENTION_DAYS_KEY        = 'attention_days'
 
 function savedFilters() {
   try { return JSON.parse(sessionStorage.getItem(FILTERS_KEY)) } catch { return null }
@@ -29,25 +30,20 @@ function isCreatedToday(dateStr) {
   return dateStr.slice(0, 10) === today
 }
 
-const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000
-
 // Status que indicam encerramento ou vínculo permanente — excluídos do lembrete de atenção.
 const OVERDUE_EXCLUDED_STATUSES = new Set([
   'Fabricação Própria',
   'Exclusividade',
 ])
 
-// Retorna true se o cliente está sem contato há mais de 3 dias.
-// Clientes criados hoje ("Novos") nunca são considerados em atraso.
-// Clientes com status de encerramento/vínculo permanente são ignorados.
-// Clientes sem nenhum contato só entram se foram criados há mais de 3 dias.
-function isOverdue(client) {
+function isOverdue(client, days) {
+  const thresholdMs = days * 24 * 60 * 60 * 1000
   if (isCreatedToday(client.created_at)) return false
   if (OVERDUE_EXCLUDED_STATUSES.has(client.status_nome)) return false
   if (client.ultimo_contato) {
-    return Date.now() - new Date(client.ultimo_contato) > THREE_DAYS_MS
+    return Date.now() - new Date(client.ultimo_contato) > thresholdMs
   }
-  return Date.now() - new Date(client.created_at) > THREE_DAYS_MS
+  return Date.now() - new Date(client.created_at) > thresholdMs
 }
 
 // Agrupa array de clientes por UF, retorna objeto { 'SP': [...], 'RJ': [...] }
@@ -196,12 +192,16 @@ export function ClientsPage() {
       return saved ? new Set(JSON.parse(saved)) : new Set()
     } catch { return new Set() }
   })
+  const [attentionDays, setAttentionDays] = useState(() => {
+    const saved = parseInt(localStorage.getItem(ATTENTION_DAYS_KEY))
+    return saved > 0 ? saved : 3
+  })
   const [attentionUFPopover, setAttentionUFPopover] = useState(false)
   const [newClientsOpen, setNewClientsOpen] = useState(
     () => sessionStorage.getItem('section_newclients') === 'true'
   )
   const { modal, showModal } = useModal()
-  const { overdueClients, showModal: showOverdueModal, dismiss: dismissOverdue } = useOverdueReminder()
+  const { overdueClients, showModal: showOverdueModal, dismiss: dismissOverdue } = useOverdueReminder(attentionDays)
 
   const [filters, setFilters] = useState(
     () => savedFilters() || { search: '', status_id: '', uf: '', ativo: '', page: 1 }
@@ -393,6 +393,10 @@ export function ClientsPage() {
     localStorage.setItem(ATTENTION_IGNORED_UFS_KEY, JSON.stringify([...attentionIgnoredUFs]))
   }, [attentionIgnoredUFs])
 
+  useEffect(() => {
+    localStorage.setItem(ATTENTION_DAYS_KEY, String(attentionDays))
+  }, [attentionDays])
+
   function toggleIgnoredUF(uf) {
     setAttentionIgnoredUFs(prev => {
       const next = new Set(prev)
@@ -450,7 +454,7 @@ export function ClientsPage() {
 
   // ── Seção Atenção reutilizável (estado e lista) ─────────────────────────────
   function renderAttentionSection(isOpen, setIsOpen) {
-    const allOverdue      = clients.filter(c => isOverdue(c))
+    const allOverdue      = clients.filter(c => isOverdue(c, attentionDays))
     const filteredOverdue = allOverdue.filter(c => !attentionIgnoredUFs.has(c.uf || '—'))
     const ufOptions       = [...new Set(allOverdue.map(c => c.uf || '—'))].sort()
 
@@ -490,7 +494,20 @@ export function ClientsPage() {
               <Settings size={13} />
             </button>
             {attentionUFPopover && (
-              <div className="absolute right-0 top-full mt-1 z-20 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl p-3 min-w-[180px]">
+              <div className="absolute right-0 top-full mt-1 z-20 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl p-3 min-w-[200px]">
+                <div className="flex items-center gap-2 mb-3 pb-3 border-b border-zinc-700">
+                  <span className="text-xs text-zinc-400">Alertar após</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={attentionDays}
+                    onChange={e => setAttentionDays(Math.max(1, Math.min(60, Number(e.target.value) || 1)))}
+                    onClick={e => e.stopPropagation()}
+                    className="w-12 text-center bg-zinc-800 border border-zinc-600 rounded text-sm text-zinc-200 px-1 py-0.5 focus:outline-none focus:border-amber-500"
+                  />
+                  <span className="text-xs text-zinc-400">dias</span>
+                </div>
                 <p className="text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wide">Ocultar estados</p>
                 <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto">
                   {ufOptions.map(uf => (
@@ -537,8 +554,8 @@ export function ClientsPage() {
   // ── Render modo "Por Estado" ────────────────────────────────────────────────
   function renderStateView() {
     const newClients    = clients.filter(c => isCreatedToday(c.created_at))
-    const allOverdue    = clients.filter(c => isOverdue(c))
-    const normalClients = clients.filter(c => !isOverdue(c))
+    const allOverdue    = clients.filter(c => isOverdue(c, attentionDays))
+    const normalClients = clients.filter(c => !isOverdue(c, attentionDays))
 
     const grouped   = groupByUF(normalClients)
     const sortedUFs = Object.keys(grouped).sort((a, b) => a.localeCompare(b))
@@ -625,7 +642,7 @@ export function ClientsPage() {
   function renderListView() {
     if (clients.length === 0) return <EmptyState icon={Search} message="Nenhum cliente encontrado" />
 
-    const normalClients  = sortByName(clients.filter(c => !isOverdue(c)))
+    const normalClients  = sortByName(clients.filter(c => !isOverdue(c, attentionDays)))
     const totalPages     = Math.ceil(normalClients.length / 50)
     const pageClients    = normalClients.slice((filters.page - 1) * 50, filters.page * 50)
 

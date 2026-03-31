@@ -32,6 +32,16 @@ export const DailyReportController = {
     }
   },
 
+  async deleteEvent(req, res, next) {
+    try {
+      const deleted = await DailyReportModel.deleteEvent(req.params.id)
+      if (!deleted) return res.status(404).json({ error: 'Evento não encontrado' })
+      res.json({ message: 'Evento removido do relatório' })
+    } catch (err) {
+      next(err)
+    }
+  },
+
   async downloadPdf(req, res, next) {
     try {
       const date = req.query.date || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })

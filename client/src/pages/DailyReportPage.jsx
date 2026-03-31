@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   BarChart2, Phone, UserPlus, BookOpen, ShoppingCart,
-  Download, ChevronDown, ChevronUp
+  Download, ChevronDown, ChevronUp, Trash2
 } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { formatDate } from '../utils/constants.js'
@@ -21,7 +21,7 @@ function SummaryCard({ icon: Icon, label, value, color }) {
   )
 }
 
-function ClientList({ title, clients, defaultOpen = false }) {
+function ClientList({ title, clients, defaultOpen = false, onDelete }) {
   const [open, setOpen] = useState(defaultOpen)
   if (clients.length === 0) return null
 
@@ -41,7 +41,7 @@ function ClientList({ title, clients, defaultOpen = false }) {
       {open && (
         <div className="mt-3 space-y-2">
           {clients.map((c, i) => (
-            <div key={`${c.client_id}-${i}`}
+            <div key={c.event_id}
               className="flex items-center gap-3 py-2 border-t border-zinc-800 first:border-0">
               <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-400 shrink-0">
                 {i + 1}
@@ -53,6 +53,13 @@ function ClientList({ title, clients, defaultOpen = false }) {
                   {c.whatsapp && ` · ${c.whatsapp}`}
                 </p>
               </div>
+              <button
+                className="p-1.5 rounded text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
+                title="Remover do relatório"
+                onClick={() => onDelete(c.event_id, c.client_nome)}
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
           ))}
         </div>
@@ -85,6 +92,28 @@ export function DailyReportPage() {
   function handleDownloadPdf() {
     api.downloadReportPdf(date)
     showModal({ type: 'info', title: 'Gerando PDF', message: 'PDF sendo gerado, aguarde...' })
+  }
+
+  function handleDelete(eventId, clientNome) {
+    showModal({
+      type: 'warning',
+      title: 'Remover do relatório?',
+      message: `Isso remove "${clientNome}" desta categoria do relatório do dia. O cadastro do cliente não é afetado.`,
+      actions: [
+        {
+          label: 'Remover',
+          variant: 'danger',
+          onClick: async () => {
+            try {
+              await api.deleteReportEvent(eventId)
+              load()
+            } catch (err) {
+              showModal({ type: 'error', title: 'Erro', message: err.message })
+            }
+          },
+        },
+      ],
+    })
   }
 
   const summary = report?.summary || {}
@@ -155,7 +184,7 @@ export function DailyReportPage() {
             />
           </div>
 
-          {/* Total geral */}
+          {/* Listas */}
           {(summary.contacted + summary.new_client + summary.catalog_requested + summary.purchased) === 0 ? (
             <div className="card text-center py-10 text-zinc-600">
               <BarChart2 size={36} className="mx-auto mb-2 opacity-20" />
@@ -167,20 +196,24 @@ export function DailyReportPage() {
                 title="Contatados"
                 clients={details.contacted || []}
                 defaultOpen
+                onDelete={handleDelete}
               />
               <ClientList
                 title="Clientes Novos"
                 clients={details.new_clients || []}
                 defaultOpen
+                onDelete={handleDelete}
               />
               <ClientList
                 title="Pediram Catálogo"
                 clients={details.catalog_requested || []}
+                onDelete={handleDelete}
               />
               <ClientList
                 title="Finalizaram Compra"
                 clients={details.purchased || []}
                 defaultOpen
+                onDelete={handleDelete}
               />
             </div>
           )}

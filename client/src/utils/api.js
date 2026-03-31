@@ -165,4 +165,5 @@ export const api = {
     const url = `${BASE}/daily-report/pdf?date=${date}`
     window.open(url, '_blank')
   },
+  deleteReportEvent: (id) => request('DELETE', `/daily-report/events/${id}`),
 }

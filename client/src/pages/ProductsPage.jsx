@@ -3,6 +3,7 @@ import { Edit2, X, Plus, Trash2, Package, ImageIcon } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { EmptyState } from '../components/EmptyState.jsx'
 import { ImageLightbox } from '../components/ImageLightbox.jsx'
+import { Toast } from '../components/Toast.jsx'
 
 // ── Máscaras ────────────────────────────────────────────────────────────────
 
@@ -184,6 +185,7 @@ function ProductForm({ initial = {}, onSave, onCancel }) {
         <div><label className="label">Autonomia</label>{txt('autonomia', 'Ex: 40-60km')}</div>
         <div><label className="label">Carregador</label>{txt('carregador', 'Ex: 2A')}</div>
         <div><label className="label">Impermeabilidade</label>{txt('impermeabilidade', 'Ex: IPX4')}</div>
+        <div><label className="label">Freio</label>{txt('freio', 'Ex: Disco hidráulico')}</div>
         <div><label className="label">Câmbio</label>{txt('cambio', 'Ex: 7 velocidades Shimano')}</div>
 
         <div className="sm:col-span-2">
@@ -342,6 +344,7 @@ export function ProductsPage() {
                     <Spec label="Pneu" value={prod.pneu} />
                     <Spec label="Suspensão" value={prod.suspensao} />
                     <Spec label="Câmbio" value={prod.cambio} />
+                    <Spec label="Freio" value={prod.freio} />
                     <Spec label="Carregador" value={prod.carregador} />
                     <Spec label="Impermeab." value={prod.impermeabilidade} />
                     <Spec label="Peso Bruto" value={prod.peso_bruto ? `${Number(prod.peso_bruto).toLocaleString('pt-BR', { minimumFractionDigits: 3 })} kg` : null} />

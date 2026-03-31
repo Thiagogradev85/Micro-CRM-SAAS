@@ -52,10 +52,10 @@ export const ProductModel = {
     const { rows } = await db.query(`
       INSERT INTO products
         (catalog_id, tipo, modelo, bateria, motor, velocidade_min, velocidade_max,
-         pneu, suspensao, autonomia, carregador, peso_bruto, peso_liquido,
+         pneu, suspensao, autonomia, carregador, freio, peso_bruto, peso_liquido,
          comprimento, largura, altura, impermeabilidade, cambio,
          estoque, imagem, extra, preco)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
       RETURNING *
     `, [
       catalog_id,
@@ -69,6 +69,7 @@ export const ProductModel = {
       cleanStr(data.suspensao),
       cleanStr(data.autonomia),
       cleanStr(data.carregador),
+      cleanStr(data.freio),
       cleanNum(data.peso_bruto),
       cleanNum(data.peso_liquido),
       cleanNum(data.comprimento),
@@ -97,19 +98,20 @@ export const ProductModel = {
         suspensao        = $8,
         autonomia        = $9,
         carregador       = $10,
-        peso_bruto       = $11,
-        peso_liquido     = $12,
-        comprimento      = $13,
-        largura          = $14,
-        altura           = $15,
-        impermeabilidade = $16,
-        cambio           = $17,
-        estoque          = $18,
-        imagem           = $19,
-        extra            = $20,
-        preco            = $21,
+        freio            = $11,
+        peso_bruto       = $12,
+        peso_liquido     = $13,
+        comprimento      = $14,
+        largura          = $15,
+        altura           = $16,
+        impermeabilidade = $17,
+        cambio           = $18,
+        estoque          = $19,
+        imagem           = $20,
+        extra            = $21,
+        preco            = $22,
         updated_at       = NOW()
-      WHERE id = $22
+      WHERE id = $23
       RETURNING *
     `, [
       cleanStr(data.tipo),
@@ -122,6 +124,7 @@ export const ProductModel = {
       cleanStr(data.suspensao),
       cleanStr(data.autonomia),
       cleanStr(data.carregador),
+      cleanStr(data.freio),
       cleanNum(data.peso_bruto),
       cleanNum(data.peso_liquido),
       cleanNum(data.comprimento),
