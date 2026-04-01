@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   MessageCircle, Wifi, WifiOff, RefreshCw, Send, Users,
-  CheckCircle, Clock, AlertTriangle, Loader2, ChevronDown, X
+  Clock, AlertTriangle, Loader2, ChevronDown, X
 } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { useModal } from '../hooks/useModal.js'
@@ -91,7 +91,6 @@ export function WhatsAppPage() {
   const [message, setMessage]     = useState('')
   const [delayMs, setDelayMs]     = useState(6000)
   const [sending, setSending]     = useState(false)
-  const [sendResult, setSendResult] = useState(null) // { message, total }
   const [loadingPreview, setLoadingPreview] = useState(false)
   const { modal, showModal } = useModal()
 
@@ -163,14 +162,12 @@ export function WhatsAppPage() {
     if (!confirm(`Enviar mensagem para ${preview.total} clientes?\n\nEssa ação não pode ser desfeita.`)) return
 
     setSending(true)
-    setSendResult(null)
     try {
       const params = {}
       if (filters.status_id) params.status_id = filters.status_id
       if (filters.ufs.length > 0) params.ufs = filters.ufs.join(',')
-      const result = await api.whatsappSendBulk({ ...params, message, delay_ms: delayMs })
-      setSendResult(result)
-      showModal({ type: 'success', title: 'Enviado!', message: result.message })
+      await api.whatsappSendBulk({ ...params, message, delay_ms: delayMs })
+      // Progress is now tracked by the floating WhatsAppProgressBar component
     } catch (err) { showModal({ type: 'error', title: 'Erro', message: err.message }) }
     finally { setSending(false) }
   }
@@ -367,13 +364,6 @@ export function WhatsAppPage() {
           <div className="flex items-center gap-2 text-sm text-yellow-400 bg-yellow-900/20 border border-yellow-800/30 rounded-lg p-3">
             <AlertTriangle size={15} className="shrink-0" />
             Conecte o WhatsApp antes de enviar.
-          </div>
-        )}
-
-        {sendResult && (
-          <div className="flex items-center gap-2 text-sm text-green-400 bg-green-900/20 border border-green-800/30 rounded-lg p-3">
-            <CheckCircle size={15} className="shrink-0" />
-            {sendResult.message}
           </div>
         )}
 

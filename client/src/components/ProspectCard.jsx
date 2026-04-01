@@ -22,6 +22,8 @@ export function ProspectCard({ prospect, selected, onToggle, duplicate, onEdit }
       nome:      prospect.nome      || '',
       whatsapp:  prospect.whatsapp  || '',
       instagram: prospect.instagram || '',
+      facebook:  prospect.facebook  || '',
+      site:      prospect.site      || '',
       email:     prospect.email     || '',
     })
     setEditing(true)
@@ -123,6 +125,24 @@ export function ProspectCard({ prospect, selected, onToggle, duplicate, onEdit }
                 placeholder="@handle"
                 value={draft.instagram}
                 onChange={e => setDraft(d => ({ ...d, instagram: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-zinc-500 mb-0.5">Facebook</label>
+              <input
+                className="input w-full text-sm"
+                placeholder="facebook.com/pagina"
+                value={draft.facebook}
+                onChange={e => setDraft(d => ({ ...d, facebook: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-zinc-500 mb-0.5">Site</label>
+              <input
+                className="input w-full text-sm"
+                placeholder="https://exemplo.com.br"
+                value={draft.site}
+                onChange={e => setDraft(d => ({ ...d, site: e.target.value }))}
               />
             </div>
             <div>

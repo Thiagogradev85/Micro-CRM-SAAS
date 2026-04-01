@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Sidebar } from './components/Sidebar.jsx'
+import { WhatsAppProgressBar } from './components/WhatsAppProgressBar.jsx'
 import { ClientsPage }      from './pages/ClientsPage.jsx'
 import { ClientDetailPage } from './pages/ClientDetailPage.jsx'
 import { CatalogPage }      from './pages/CatalogPage.jsx'
@@ -15,6 +16,7 @@ export default function App() {
     <BrowserRouter>
       <div className="flex h-screen overflow-hidden bg-zinc-950">
         <Sidebar />
+        <WhatsAppProgressBar />
         <main className="flex-1 overflow-y-auto">
           <Routes>
             <Route path="/" element={<Navigate to="/clients" replace />} />

@@ -1,4 +1,5 @@
 import { whatsAppService } from '../modules/whatsapp/index.js'
+import { progressStore }   from '../modules/whatsapp/progressStore.js'
 import { ClientModel } from '../models/ClientModel.js'
 import { AppError } from '../utils/AppError.js'
 
@@ -38,6 +39,17 @@ export const WhatsAppController = {
     }
   },
 
+  // GET /whatsapp/progress
+  async progress(req, res) {
+    res.json(progressStore.get() ?? { status: 'idle' })
+  },
+
+  // POST /whatsapp/progress/clear
+  async progressClear(req, res) {
+    progressStore.clear()
+    res.json({ ok: true })
+  },
+
   // GET /whatsapp/preview?status_id=&ufs=MT,MS,PR
   // Retorna clientes que receberão a mensagem (com WhatsApp válido)
   async preview(req, res, next) {
@@ -74,6 +86,7 @@ export const WhatsAppController = {
       const clients = result.data.filter(c => c.whatsapp)
       if (clients.length === 0) throw new AppError('Nenhum cliente com WhatsApp encontrado para os filtros selecionados.', 400)
 
+      progressStore.start(clients.length)
       res.json({ message: `Iniciando envio para ${clients.length} clientes...`, total: clients.length })
 
       whatsAppService.sendBulk({
@@ -81,7 +94,7 @@ export const WhatsAppController = {
         message,
         delayMs: Math.max(3000, parseInt(delay_ms)),
         onProgress: ({ current, total, results }) => {
-          console.log(`[WhatsApp] Progresso: ${current}/${total} — enviados: ${results.sent}, erros: ${results.failed}`)
+          progressStore.update({ current, sent: results.sent, failed: results.failed })
         },
         onSent: async (client) => {
           try {
@@ -91,7 +104,7 @@ export const WhatsAppController = {
           }
         },
       }).then(results => {
-        console.log('[WhatsApp] Envio concluído:', results)
+        progressStore.finish({ sent: results.sent, failed: results.failed })
       })
     } catch (err) {
       next(err)

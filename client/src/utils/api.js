@@ -142,8 +142,10 @@ export const api = {
   whatsappConnect:  ()                => request('POST', '/whatsapp/connect'),
   whatsappDisconnect:    ()           => request('POST', '/whatsapp/disconnect'),
   whatsappClearSession:  ()           => request('POST', '/whatsapp/clear-session'),
-  whatsappPreview:  (params)          => request('GET',  '/whatsapp/preview?' + new URLSearchParams(params).toString()),
-  whatsappSendBulk: (data)            => request('POST', '/whatsapp/send-bulk', data),
+  whatsappPreview:       (params) => request('GET',  '/whatsapp/preview?' + new URLSearchParams(params).toString()),
+  whatsappSendBulk:      (data)   => request('POST', '/whatsapp/send-bulk', data),
+  whatsappProgress:      ()       => request('GET',  '/whatsapp/progress'),
+  whatsappProgressClear: ()       => request('POST', '/whatsapp/progress/clear'),
 
   // E-mail em Massa
   emailStatus:      ()       => request('GET',  '/email/status'),
