@@ -470,93 +470,93 @@ export function ClientsPage() {
     if (allOverdue.length === 0 && attentionIgnoredUFs.size === 0) return null
 
     return (
-      <div className="table-wrapper">
+      <div className="relative">
         {attentionUFPopover && (
           <div className="fixed inset-0 z-10" onClick={() => setAttentionUFPopover(false)} />
         )}
-        <div className="flex items-center bg-amber-950 border-b border-amber-800">
-          <button
-            className="flex-1 flex items-center gap-2 px-4 py-2 hover:bg-amber-900/60 transition-colors text-left"
-            onClick={() => setIsOpen(v => !v)}
-          >
-            <AlertTriangle size={14} className="text-amber-400" />
-            <span className="font-semibold text-amber-300 text-sm">Atenção</span>
-            <span className="text-amber-700 text-xs">
-              {filteredOverdue.length} cliente{filteredOverdue.length !== 1 ? 's' : ''} sem contato há mais de {attentionDays} dias
-              {attentionIgnoredUFs.size > 0 && (
-                <span className="ml-1 text-amber-800">
-                  · {attentionIgnoredUFs.size} UF{attentionIgnoredUFs.size !== 1 ? 's' : ''} oculta{attentionIgnoredUFs.size !== 1 ? 's' : ''}
-                </span>
-              )}
-            </span>
-            {isOpen
-              ? <ChevronUp size={14} className="ml-auto text-amber-600" />
-              : <ChevronDown size={14} className="ml-auto text-amber-600" />
-            }
-          </button>
-          <div className="relative z-20 px-2">
+        <div className="table-wrapper">
+          <div className="flex items-center bg-amber-950 border-b border-amber-800">
             <button
-              className={`p-1.5 rounded transition-colors ${attentionIgnoredUFs.size > 0 ? 'text-amber-400 bg-amber-800/50' : 'text-amber-700 hover:text-amber-400 hover:bg-amber-800/30'}`}
+              className="flex-1 flex items-center gap-2 px-4 py-2 hover:bg-amber-900/60 transition-colors text-left"
+              onClick={() => setIsOpen(v => !v)}
+            >
+              <AlertTriangle size={14} className="text-amber-400" />
+              <span className="font-semibold text-amber-300 text-sm">Atenção</span>
+              <span className="text-amber-700 text-xs">
+                {filteredOverdue.length} cliente{filteredOverdue.length !== 1 ? 's' : ''} sem contato há mais de {attentionDays} dias
+                {attentionIgnoredUFs.size > 0 && (
+                  <span className="ml-1 text-amber-800">
+                    · {attentionIgnoredUFs.size} UF{attentionIgnoredUFs.size !== 1 ? 's' : ''} oculta{attentionIgnoredUFs.size !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </span>
+              {isOpen
+                ? <ChevronUp size={14} className="ml-auto text-amber-600" />
+                : <ChevronDown size={14} className="ml-auto text-amber-600" />
+              }
+            </button>
+            <button
+              className={`relative z-20 p-1.5 mx-2 rounded transition-colors ${attentionIgnoredUFs.size > 0 ? 'text-amber-400 bg-amber-800/50' : 'text-amber-700 hover:text-amber-400 hover:bg-amber-800/30'}`}
               title="Configurar estados do grupo de atenção"
               onClick={e => { e.stopPropagation(); setAttentionUFPopover(v => !v) }}
             >
               <Settings size={13} />
             </button>
-            {attentionUFPopover && (
-              <div className="absolute right-0 top-full mt-1 z-20 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl p-3 min-w-[220px]">
-                <div className="flex items-center gap-2 mb-3 pb-3 border-b border-zinc-700">
-                  <span className="text-xs text-zinc-400">Alertar após</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max="60"
-                    value={attentionDays}
-                    onChange={e => setAttentionDays(Math.max(1, Math.min(60, Number(e.target.value) || 1)))}
-                    onClick={e => e.stopPropagation()}
-                    className="w-12 text-center bg-zinc-800 border border-zinc-600 rounded text-sm text-zinc-200 px-1 py-0.5 focus:outline-none focus:border-amber-500"
-                  />
-                  <span className="text-xs text-zinc-400">dias</span>
-                </div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Estados ocultos</p>
-                  {attentionIgnoredUFs.size > 0 && (
-                    <button
-                      className="text-xs text-amber-600 hover:text-amber-400 transition-colors"
-                      onClick={e => { e.stopPropagation(); setAttentionIgnoredUFs(new Set()) }}
-                    >
-                      Mostrar todos
-                    </button>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto">
-                  {ufOptions.map(uf => (
-                    <label key={uf} className="flex items-center gap-2 cursor-pointer text-sm text-zinc-300 hover:text-zinc-100">
-                      <input
-                        type="checkbox"
-                        checked={attentionIgnoredUFs.has(uf)}
-                        onChange={() => toggleIgnoredUF(uf)}
-                        className="accent-amber-500"
-                      />
-                      <span className={attentionIgnoredUFs.has(uf) ? 'line-through text-zinc-500' : ''}>{uf}</span>
-                      <span className="ml-auto text-zinc-500 text-xs">
-                        {allOverdue.filter(c => (c.uf || '—') === uf).length}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
+          {isOpen && filteredOverdue.length > 0 && (
+            <table className="table">
+              {tableHead}
+              <tbody>
+                {sortByName(filteredOverdue).map(c => (
+                  <ClientRow key={c.id} c={c} isAttention alreadyContacted={contactedToday.has(c.id)} {...rowProps} />
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
-        {isOpen && filteredOverdue.length > 0 && (
-          <table className="table">
-            {tableHead}
-            <tbody>
-              {sortByName(filteredOverdue).map(c => (
-                <ClientRow key={c.id} c={c} isAttention alreadyContacted={contactedToday.has(c.id)} {...rowProps} />
+        {attentionUFPopover && (
+          <div className="absolute right-0 top-9 z-20 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl p-3 min-w-[220px]">
+            <div className="flex items-center gap-2 mb-3 pb-3 border-b border-zinc-700">
+              <span className="text-xs text-zinc-400">Alertar após</span>
+              <input
+                type="number"
+                min="1"
+                max="60"
+                value={attentionDays}
+                onChange={e => setAttentionDays(Math.max(1, Math.min(60, Number(e.target.value) || 1)))}
+                onClick={e => e.stopPropagation()}
+                className="w-12 text-center bg-zinc-800 border border-zinc-600 rounded text-sm text-zinc-200 px-1 py-0.5 focus:outline-none focus:border-amber-500"
+              />
+              <span className="text-xs text-zinc-400">dias</span>
+            </div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Estados ocultos</p>
+              {attentionIgnoredUFs.size > 0 && (
+                <button
+                  className="text-xs text-amber-600 hover:text-amber-400 transition-colors"
+                  onClick={e => { e.stopPropagation(); setAttentionIgnoredUFs(new Set()) }}
+                >
+                  Mostrar todos
+                </button>
+              )}
+            </div>
+            <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto">
+              {ufOptions.map(uf => (
+                <label key={uf} className="flex items-center gap-2 cursor-pointer text-sm text-zinc-300 hover:text-zinc-100">
+                  <input
+                    type="checkbox"
+                    checked={attentionIgnoredUFs.has(uf)}
+                    onChange={e => { e.stopPropagation(); toggleIgnoredUF(uf) }}
+                    className="accent-amber-500"
+                  />
+                  <span className={attentionIgnoredUFs.has(uf) ? 'line-through text-zinc-500' : ''}>{uf}</span>
+                  <span className="ml-auto text-zinc-500 text-xs">
+                    {allOverdue.filter(c => (c.uf || '—') === uf).length}
+                  </span>
+                </label>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
         )}
       </div>
     )
