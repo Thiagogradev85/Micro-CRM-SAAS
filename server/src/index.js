@@ -22,14 +22,21 @@ import db                from './db/db.js'
 dotenv.config()
 
 // ── Reset diário: Contatado → Prospecção à meia-noite ──
-async function resetContatadoParaProspeccao() {
+async function resetContatadoParaProspeccao({ apenasAnteriores = false } = {}) {
   try {
+    // Se apenasAnteriores=true, só reseta clientes atualizados antes de hoje (Brasília)
+    // Usado na inicialização para não afetar quem foi contatado hoje
+    const whereExtra = apenasAnteriores
+      ? `AND updated_at AT TIME ZONE 'America/Sao_Paulo' < CURRENT_DATE AT TIME ZONE 'America/Sao_Paulo'`
+      : ''
+
     const { rowCount } = await db.query(`
       UPDATE clients
       SET status_id  = (SELECT id FROM status WHERE nome = 'Prospecção' LIMIT 1),
           updated_at = NOW()
       WHERE status_id = (SELECT id FROM status WHERE nome = 'Contatado' LIMIT 1)
         AND ativo = true
+        ${whereExtra}
     `)
     if (rowCount > 0) {
       console.log(`[Reset diário] ${rowCount} cliente(s) voltaram para Prospecção.`)
@@ -97,5 +104,7 @@ app.use((err, req, res, _next) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando em http://localhost:${PORT}`)
+  // Reseta clientes contatados em dias anteriores caso o servidor estivesse offline à meia-noite
+  resetContatadoParaProspeccao({ apenasAnteriores: true })
   agendarResetMeiaNoite()
 })
