@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-  Users, BookOpen, BarChart2, UserCheck, X, Menu, Package, MessageCircle, Mail, Telescope
+  Users, BookOpen, BarChart2, UserCheck, X, Menu, Package, MessageCircle, Mail, Telescope, Sparkles
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -11,8 +11,9 @@ const links = [
   { to: '/sellers',      icon: UserCheck,     label: 'Vendedores'       },
   { to: '/whatsapp',     icon: MessageCircle, label: 'WhatsApp'         },
   { to: '/email',        icon: Mail,          label: 'E-mail em Massa'  },
-  { to: '/daily-report', icon: BarChart2,     label: 'Relatório Diário' },
   { to: '/prospecting',  icon: Telescope,     label: 'Prospecção'       },
+  { to: '/enrich',       icon: Sparkles,      label: 'Enriquecimento'   },
+  { to: '/daily-report', icon: BarChart2,     label: 'Relatório Diário' },
 ]
 
 export function Sidebar() {

@@ -4,6 +4,7 @@ import { api } from '../utils/api.js'
 import { UFS } from '../utils/constants.js'
 import { ProspectCard } from '../components/ProspectCard.jsx'
 import { SerperLimitModal } from '../components/SerperLimitModal.jsx'
+import { EnrichModal } from '../components/EnrichModal.jsx'
 import { useModal } from '../hooks/useModal.js'
 
 export function ProspectingPage() {
@@ -21,6 +22,7 @@ export function ProspectingPage() {
   const [loading, setLoading]   = useState(false)
   const [saving, setSaving]     = useState(false)
   const [creditsUsed, setCreditsUsed] = useState(null)
+  const [enrichIds, setEnrichIds] = useState(null)  // null = modal fechado
 
   async function handleSearch(e) {
     e.preventDefault()
@@ -72,25 +74,44 @@ export function ProspectingPage() {
     try {
       const result = await api.saveProspects(toSave)
       const hasErrors = result.errors?.length > 0
-      showModal({
-        type:    hasErrors ? 'warning' : 'success',
-        title:   hasErrors ? 'Salvos com avisos' : 'Prospects salvos',
-        message: result.saved > 0
-          ? `${result.saved} cliente${result.saved !== 1 ? 's' : ''} adicionado${result.saved !== 1 ? 's' : ''} com sucesso.${hasErrors ? ` ${result.errors.length} não puderam ser salvos.` : ''}`
-          : 'Nenhum cliente foi salvo. Verifique os erros abaixo.',
-        details: hasErrors ? result.errors : [],
-      })
+
       // Remove saved prospects from results
       setResults(prev => ({
         ...prev,
         unique: prev.unique.filter((_, i) => !selected.has(i)),
       }))
       setSelected(new Set())
+
+      if (result.saved > 0) {
+        // Busca os IDs dos clientes recém-salvos para enriquecimento
+        // A API retorna os IDs criados quando saved > 0
+        if (result.ids?.length) {
+          setEnrichIds(result.ids)
+        } else {
+          showModal({
+            type:    hasErrors ? 'warning' : 'success',
+            title:   hasErrors ? 'Salvos com avisos' : 'Prospects salvos',
+            message: `${result.saved} cliente${result.saved !== 1 ? 's' : ''} adicionado${result.saved !== 1 ? 's' : ''} com sucesso.${hasErrors ? ` ${result.errors.length} não puderam ser salvos.` : ''}`,
+            details: hasErrors ? result.errors : [],
+          })
+        }
+      } else {
+        showModal({
+          type: hasErrors ? 'error' : 'warning',
+          title: 'Nenhum cliente salvo',
+          message: 'Nenhum cliente foi salvo. Verifique os erros abaixo.',
+          details: hasErrors ? result.errors : [],
+        })
+      }
     } catch (err) {
       showModal({ type: 'error', title: 'Erro ao salvar', message: err.message })
     } finally {
       setSaving(false)
     }
+  }
+
+  async function handleEnrichSave(patches) {
+    await Promise.all(patches.map(({ id, fields }) => api.updateClient(id, fields)))
   }
 
   function handleEdit(index, data) {
@@ -116,6 +137,13 @@ export function ProspectingPage() {
     <div className="p-4 md:p-6 space-y-5">
       {modal}
       {showLimitModal && <SerperLimitModal onClose={() => setShowLimitModal(false)} />}
+      {enrichIds && (
+        <EnrichModal
+          clientIds={enrichIds}
+          onSave={handleEnrichSave}
+          onClose={() => setEnrichIds(null)}
+        />
+      )}
 
       {/* Header */}
       <div className="flex items-center gap-3">

@@ -1,6 +1,7 @@
 import { searchPlaces }   from '../modules/prospecting/serper.js'
 import { parseAddress, parsePhone } from '../modules/prospecting/addressParser.js'
 import { filterExisting }  from '../modules/prospecting/deduplication.js'
+import { enrichClient }    from '../modules/prospecting/enrichClient.js'
 import { ClientModel }     from '../models/ClientModel.js'
 import { AppError }        from '../utils/AppError.js'
 
@@ -228,6 +229,7 @@ export const ProspectingController = {
 
       let saved = 0
       const errors = []
+      const ids = []
 
       for (const prospect of unique) {
         try {
@@ -238,14 +240,60 @@ export const ProspectingController = {
           // Priority: parsed address UF → search UF (_ufFallback) → 'XX' (unknown state marker)
           if (!clientData.uf) clientData.uf = _ufFallback || 'XX'
 
-          await ClientModel.create(clientData)
+          const client = await ClientModel.create(clientData)
+          ids.push(client.id)
           saved++
         } catch (err) {
           errors.push(`${prospect.nome}: ${err.message}`)
         }
       }
 
-      res.json({ saved, skipped: unique.length - saved, errors })
+      res.json({ saved, skipped: unique.length - saved, errors, ids })
+    } catch (err) {
+      next(err)
+    }
+  },
+
+  /**
+   * POST /prospecting/enrich
+   * Body: { clientIds: number[] }
+   *
+   * Para cada cliente, busca no Google + Claude dados faltantes
+   * (instagram, facebook, email, whatsapp, telefone).
+   * Retorna sugestões por cliente — o usuário decide o que salvar.
+   */
+  async enrich(req, res, next) {
+    try {
+      const { clientIds } = req.body
+      if (!Array.isArray(clientIds) || clientIds.length === 0) {
+        throw new AppError('Informe ao menos um clientId.', 400)
+      }
+      if (clientIds.length > 20) {
+        throw new AppError('Máximo de 20 clientes por enriquecimento.', 400)
+      }
+
+      const results = []
+
+      for (const id of clientIds) {
+        const client = await ClientModel.get(id)
+        if (!client) continue
+
+        // Só enriquece quem tem algum campo de contato/social faltando
+        const needsEnrich = !client.instagram || !client.facebook || !client.email || !client.whatsapp || !client.telefone
+        if (!needsEnrich) {
+          results.push({ id, nome: client.nome, suggestions: {} })
+          continue
+        }
+
+        try {
+          const suggestions = await enrichClient(client)
+          results.push({ id, nome: client.nome, suggestions })
+        } catch (err) {
+          results.push({ id, nome: client.nome, suggestions: {}, error: err.message })
+        }
+      }
+
+      res.json({ results })
     } catch (err) {
       next(err)
     }

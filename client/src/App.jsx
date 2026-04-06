@@ -10,6 +10,7 @@ import { DailyReportPage }  from './pages/DailyReportPage.jsx'
 import { WhatsAppPage }      from './pages/WhatsAppPage.jsx'
 import { EmailPage }         from './pages/EmailPage.jsx'
 import { ProspectingPage }   from './pages/ProspectingPage.jsx'
+import { EnrichPage }        from './pages/EnrichPage.jsx'
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
             <Route path="/whatsapp"      element={<WhatsAppPage />} />
             <Route path="/email"         element={<EmailPage />} />
             <Route path="/prospecting"   element={<ProspectingPage />} />
+            <Route path="/enrich"        element={<EnrichPage />} />
           </Routes>
         </main>
       </div>

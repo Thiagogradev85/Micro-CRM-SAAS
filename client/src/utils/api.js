@@ -156,8 +156,9 @@ export const api = {
   emailSendBulk:    (data)   => request('POST', '/email/send-bulk', data),
 
   // Prospecting
-  searchProspects: (data)      => request('POST', '/prospecting/search', data),
-  saveProspects:   (prospects) => request('POST', '/prospecting/save', { prospects }),
+  searchProspects:  (data)      => request('POST', '/prospecting/search', data),
+  saveProspects:    (prospects) => request('POST', '/prospecting/save', { prospects }),
+  enrichProspects:  (clientIds) => request('POST', '/prospecting/enrich', { clientIds }),
 
   // Daily Report
   getReportSummary: (date) => request('GET', `/daily-report/summary?date=${date}`),
