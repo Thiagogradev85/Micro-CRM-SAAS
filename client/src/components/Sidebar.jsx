@@ -11,9 +11,9 @@ const links = [
   { to: '/sellers',      icon: UserCheck,     label: 'Vendedores'       },
   { to: '/whatsapp',     icon: MessageCircle, label: 'WhatsApp'         },
   { to: '/email',        icon: Mail,          label: 'E-mail em Massa'  },
-  { to: '/daily-report', icon: BarChart2,     label: 'Relatório Diário' },
   { to: '/prospecting',  icon: Telescope,     label: 'Prospecção'       },
   { to: '/enrich',       icon: Sparkles,      label: 'Enriquecimento'   },
+  { to: '/daily-report', icon: BarChart2,     label: 'Relatório Diário' },
 ]
 
 export function Sidebar() {
