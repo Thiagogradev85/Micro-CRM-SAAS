@@ -566,7 +566,7 @@ export function ClientsPage() {
   function renderStateView() {
     const newClients    = clients.filter(c => isCreatedToday(c.created_at))
     const allOverdue    = clients.filter(c => isOverdue(c, attentionDays))
-    const normalClients = clients.filter(c => !isOverdue(c, attentionDays))
+    const normalClients = clients
 
     const grouped   = groupByUF(normalClients)
     const sortedUFs = Object.keys(grouped).sort((a, b) => a.localeCompare(b))
