@@ -23,6 +23,7 @@ import { useModal } from '../hooks/useModal.js'
 import { useOverdueReminder } from '../hooks/useOverdueReminder.js'
 import { OverdueReminderModal } from '../components/OverdueReminderModal.jsx'
 import { DuplicatesModal } from '../components/DuplicatesModal.jsx'
+import { EnrichModal } from '../components/EnrichModal.jsx'
 
 function isCreatedToday(dateStr) {
   if (!dateStr) return false
@@ -57,7 +58,7 @@ function groupByUF(clients) {
 }
 
 // Linha individual de cliente (reutilizada em ambos os modos)
-function ClientRow({ c, alreadyContacted, isAttention, onContact, onDeactivate, onDelete, navigate }) {
+function ClientRow({ c, alreadyContacted, isAttention, onContact, onDeactivate, onDelete, onEnrich, navigate }) {
   return (
     <tr key={c.id}>
       <td className="max-w-[180px] break-words">
@@ -145,6 +146,13 @@ function ClientRow({ c, alreadyContacted, isAttention, onContact, onDeactivate, 
           >
             <Eye size={13} />
           </button>
+          <button
+            className="btn-ghost btn-sm"
+            onClick={() => onEnrich(c)}
+            title="Enriquecer dados deste cliente"
+          >
+            <Sparkles size={13} className="text-amber-400" />
+          </button>
           {c.ativo
             ? (
               <button
@@ -170,6 +178,38 @@ function ClientRow({ c, alreadyContacted, isAttention, onContact, onDeactivate, 
   )
 }
 
+function UFSection({ uf, rows, tableHead, contactedToday, rowProps }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="table-wrapper">
+      <button
+        className="w-full flex items-center gap-2 px-4 py-2 bg-zinc-800 border-b border-zinc-700 hover:bg-zinc-700/60 transition-colors text-left"
+        onClick={() => setOpen(v => !v)}
+      >
+        <MapPin size={14} className="text-sky-400" />
+        <span className="font-semibold text-zinc-100 text-sm">{uf}</span>
+        <span className="text-zinc-500 text-xs">
+          {rows.length} cliente{rows.length !== 1 ? 's' : ''}
+        </span>
+        {open
+          ? <ChevronUp size={14} className="ml-auto text-zinc-600" />
+          : <ChevronDown size={14} className="ml-auto text-zinc-600" />
+        }
+      </button>
+      {open && (
+        <table className="table">
+          {tableHead}
+          <tbody>
+            {rows.map(c => (
+              <ClientRow key={c.id} c={c} alreadyContacted={contactedToday.has(c.id)} {...rowProps} />
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
 export function ClientsPage() {
   const navigate = useNavigate()
   const [clients, setClients]   = useState([])
@@ -181,11 +221,13 @@ export function ClientsPage() {
   const [contactedToday, setContactedToday] = useState(new Set())
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [dupModal, setDupModal] = useState(null)
+  const [enrichModal, setEnrichModal] = useState(null)
   // 'state' = agrupado por estado | 'list' = lista plana com paginação
   const [viewMode, setViewMode] = useState(
     () => sessionStorage.getItem(VIEW_KEY) || 'state'
   )
-  const [nameSort, setNameSort] = useState('asc') // 'asc' | 'desc'
+  const [nameSort, setNameSort]         = useState('asc')  // 'asc' | 'desc'
+  const [contactSort, setContactSort]   = useState(null)   // null | 'asc' | 'desc'
   const [attentionOpen, setAttentionOpen] = useState(
     () => sessionStorage.getItem('section_attention') === 'true'
   )
@@ -343,6 +385,15 @@ export function ClientsPage() {
     }
   }
 
+  async function handleEnrichSave(patches) {
+    for (const { id, fields } of patches) {
+      if (Object.keys(fields).length > 0) {
+        await api.updateClient(id, fields)
+      }
+    }
+    load()
+  }
+
   async function handleCreate(data) {
     try {
       await api.createClient(data)
@@ -429,7 +480,13 @@ export function ClientsPage() {
     sessionStorage.removeItem(FILTERS_KEY)
   }
 
-  const SortIcon = nameSort === 'asc' ? ArrowUp : ArrowDown
+  const SortIcon        = nameSort    === 'asc' ? ArrowUp : ArrowDown
+  const ContactSortIcon = contactSort === 'asc' ? ArrowUp : contactSort === 'desc' ? ArrowDown : ArrowUpDown
+
+  function handleContactSort() {
+    // null → 'asc' (sem data primeiro) → 'desc' (mais recente primeiro) → null
+    setContactSort(s => s === null ? 'asc' : s === 'asc' ? 'desc' : null)
+  }
 
   const tableHead = (
     <thead>
@@ -449,16 +506,38 @@ export function ClientsPage() {
         <th className="hidden md:table-cell">Instagram</th>
         <th>Status</th>
         <th className="hidden md:table-cell">Nota</th>
-        <th className="hidden lg:table-cell">Últ. Contato</th>
+        <th className="hidden lg:table-cell">
+          <button
+            className="flex items-center gap-1 hover:text-sky-400 transition-colors"
+            onClick={handleContactSort}
+            title="Ordenar por último contato (sem data primeiro)"
+          >
+            Últ. Contato
+            <ContactSortIcon size={13} className={contactSort ? 'text-sky-400' : 'text-zinc-600'} />
+          </button>
+        </th>
         <th>Ações</th>
       </tr>
     </thead>
   )
 
-  const rowProps = { contactedToday, onContact: handleContact, onDeactivate: handleDeactivate, onDelete: handleDelete, navigate }
+  const rowProps = { contactedToday, onContact: handleContact, onDeactivate: handleDeactivate, onDelete: handleDelete, onEnrich: (c) => setEnrichModal({ clientIds: [c.id] }), navigate }
 
-  function sortByName(arr) {
+  function sortClients(arr) {
     return [...arr].sort((a, b) => {
+      if (contactSort) {
+        const dateA = a.ultimo_contato ? new Date(a.ultimo_contato).getTime() : null
+        const dateB = b.ultimo_contato ? new Date(b.ultimo_contato).getTime() : null
+        if (contactSort === 'asc') {
+          if (dateA === null && dateB !== null) return -1
+          if (dateA !== null && dateB === null) return 1
+          if (dateA !== null && dateB !== null) return dateA - dateB
+        } else {
+          if (dateA === null && dateB !== null) return 1
+          if (dateA !== null && dateB === null) return -1
+          if (dateA !== null && dateB !== null) return dateB - dateA
+        }
+      }
       const cmp = (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' })
       return nameSort === 'asc' ? cmp : -cmp
     })
@@ -510,7 +589,7 @@ export function ClientsPage() {
             <table className="table">
               {tableHead}
               <tbody>
-                {sortByName(filteredOverdue).map(c => (
+                {sortClients(filteredOverdue).map(c => (
                   <ClientRow key={c.id} c={c} isAttention alreadyContacted={contactedToday.has(c.id)} {...rowProps} />
                 ))}
               </tbody>
@@ -577,38 +656,6 @@ export function ClientsPage() {
     if (newClients.length === 0 && allOverdue.length === 0 && sortedUFs.length === 0)
       return <EmptyState icon={Search} message="Nenhum cliente encontrado" />
 
-    function UFSection({ uf, rows }) {
-      const [open, setOpen] = useState(false)
-      return (
-        <div className="table-wrapper">
-          <button
-            className="w-full flex items-center gap-2 px-4 py-2 bg-zinc-800 border-b border-zinc-700 hover:bg-zinc-700/60 transition-colors text-left"
-            onClick={() => setOpen(v => !v)}
-          >
-            <MapPin size={14} className="text-sky-400" />
-            <span className="font-semibold text-zinc-100 text-sm">{uf}</span>
-            <span className="text-zinc-500 text-xs">
-              {rows.length} cliente{rows.length !== 1 ? 's' : ''}
-            </span>
-            {open
-              ? <ChevronUp size={14} className="ml-auto text-zinc-600" />
-              : <ChevronDown size={14} className="ml-auto text-zinc-600" />
-            }
-          </button>
-          {open && (
-            <table className="table">
-              {tableHead}
-              <tbody>
-                {sortByName(rows).map(c => (
-                  <ClientRow key={c.id} c={c} alreadyContacted={contactedToday.has(c.id)} {...rowProps} />
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )
-    }
-
     return (
       <div className="space-y-6">
         {/* Seção Atenção — clientes sem contato há mais de 3 dias */}
@@ -635,7 +682,7 @@ export function ClientsPage() {
               <table className="table">
                 {tableHead}
                 <tbody>
-                  {sortByName(newClients).map(c => (
+                  {sortClients(newClients).map(c => (
                     <ClientRow key={c.id} c={c} alreadyContacted={contactedToday.has(c.id)} {...rowProps} />
                   ))}
                 </tbody>
@@ -646,7 +693,14 @@ export function ClientsPage() {
 
         {/* Seções por UF */}
         {sortedUFs.map(uf => (
-          <UFSection key={uf} uf={uf} rows={grouped[uf]} />
+          <UFSection
+            key={uf}
+            uf={uf}
+            rows={sortClients(grouped[uf])}
+            tableHead={tableHead}
+            contactedToday={contactedToday}
+            rowProps={rowProps}
+          />
         ))}
       </div>
     )
@@ -656,7 +710,7 @@ export function ClientsPage() {
   function renderListView() {
     if (clients.length === 0) return <EmptyState icon={Search} message="Nenhum cliente encontrado" />
 
-    const normalClients  = sortByName(clients.filter(c => !isOverdue(c, attentionDays)))
+    const normalClients  = sortClients(clients.filter(c => !isOverdue(c, attentionDays)))
     const totalPages     = Math.ceil(normalClients.length / 50)
     const pageClients    = normalClients.slice((filters.page - 1) * 50, filters.page * 50)
 
@@ -727,6 +781,14 @@ export function ClientsPage() {
         onDelete={handleDeleteDuplicate}
         navigate={navigate}
       />
+
+      {enrichModal && (
+        <EnrichModal
+          clientIds={enrichModal.clientIds}
+          onSave={handleEnrichSave}
+          onClose={() => setEnrichModal(null)}
+        />
+      )}
 
       {showOverdueModal && (
         <OverdueReminderModal clients={overdueClients} onClose={dismissOverdue} />
