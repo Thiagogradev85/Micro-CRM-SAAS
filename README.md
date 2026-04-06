@@ -111,14 +111,26 @@ Busca empresas no **Google Maps** e cadastra novos prospects automaticamente.
 4. Clique em **Salvar selecionados**
 5. Após salvar, o sistema oferece **Enriquecimento de Dados** automático
 
-### Enriquecimento de Dados (novo)
+### Enriquecimento de Dados
 
-Após salvar prospects, o sistema busca dados de contato faltantes (Instagram, Facebook, e-mail, WhatsApp, telefone) usando:
+Módulo dedicado acessível pelo menu lateral em **Enriquecimento**. Permite buscar dados de contato faltantes para clientes já existentes na base.
 
-- **Serper Web Search** — busca no Google por nome + cidade da empresa
-- **Claude Haiku** — extrai e estrutura os dados encontrados nos resultados
+**Duas formas de uso:**
 
-O usuário revisa cada sugestão campo a campo e decide o que salvar. Nenhum dado é salvo automaticamente sem confirmação.
+1. **Após prospecção** — ao salvar novos prospects, o modal de enriquecimento abre automaticamente
+2. **Módulo avulso** (`/enrich`) — selecione clientes existentes por UF, status ou busca por nome e enriqueça em lote
+
+**Filtros disponíveis na página:**
+- Busca por nome ou cidade
+- Estado (UF) — seleciona toda a UF com um clique
+- Status do cliente
+- Campos faltando: "Sem Instagram", "Sem WhatsApp", "Sem E-mail", "Sem Facebook"
+
+**Como funciona:**
+- Busca no Google via **Serper Web Search** por nome + cidade do cliente
+- Extrai Instagram, Facebook, e-mail e telefone via parsing de URLs e regex
+- Suporta lotes de 20 clientes com barra de progresso quando há mais
+- O usuário revisa cada campo por cliente e decide o que salvar — nenhum dado é salvo automaticamente
 
 ### Produtos
 
