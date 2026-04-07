@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { MessageCircle, X, CheckCircle, AlertTriangle } from 'lucide-react'
 import { api } from '../utils/api.js'
 
@@ -9,13 +9,16 @@ const POLL_MS = 3000
  * Polls GET /whatsapp/progress every 3s and persists across page navigation.
  */
 export function WhatsAppProgressBar() {
-  const [job, setJob]         = useState(null)   // null | progress object
-  const [visible, setVisible] = useState(false)
+  const [job, setJob]             = useState(null)
+  const [visible, setVisible]     = useState(false)
   const [dismissed, setDismissed] = useState(false)
+  const errorCount = useRef(0)
+  const intervalRef = useRef(null)
 
   const fetchProgress = useCallback(async () => {
     try {
       const data = await api.whatsappProgress()
+      errorCount.current = 0
       if (!data || data.status === 'idle') {
         setJob(null)
         return
@@ -23,19 +26,24 @@ export function WhatsAppProgressBar() {
       setJob(data)
       if (!dismissed) setVisible(true)
     } catch {
-      // backend offline or no job — ignore silently
+      errorCount.current += 1
+      // Após 3 erros consecutivos, para o polling silenciosamente
+      if (errorCount.current >= 3 && intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
     }
   }, [dismissed])
 
   useEffect(() => {
     fetchProgress()
-    // Só continua polling enquanto há job ativo (job não-nulo)
-    // O intervalo é recriado apenas quando dismissed muda
-    const id = setInterval(fetchProgress, POLL_MS)
-    return () => clearInterval(id)
+    intervalRef.current = setInterval(fetchProgress, POLL_MS)
+    return () => {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
   }, [fetchProgress])
 
-  // Para o polling assim que o job termina e é descartado
   useEffect(() => {
     if (!job) setVisible(false)
   }, [job])
