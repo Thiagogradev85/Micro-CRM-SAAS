@@ -17,9 +17,10 @@ function extractInstagram(text) {
     if (!IG_BLOCKED.has(handle.toLowerCase())) return handle
   }
 
-  // Prioridade 2: menção explícita com prefixo (comum em snippets do Facebook/Google)
+  // Prioridade 2: menção explícita com @ (comum em snippets do Facebook/Google)
+  // Exige @ para evitar falsos positivos com palavras portuguesas após "instagram"
   // Ex: "Instagram: @bikeloja" | "IG: @bikeshop" | "instagram @conta_loja"
-  const mentionMatch = text.match(/(?:instagram|ig)\s*[:\s@]+([A-Za-z0-9_.]{3,30})/i)
+  const mentionMatch = text.match(/(?:instagram|ig)\s*[:\s]*@([A-Za-z0-9_.]{3,30})/i)
   if (mentionMatch) {
     const handle = mentionMatch[1]
     if (!IG_BLOCKED.has(handle.toLowerCase()) && /^[A-Za-z0-9]/.test(handle)) return handle
