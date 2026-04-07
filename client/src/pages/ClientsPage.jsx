@@ -182,7 +182,8 @@ const ClientRow = memo(function ClientRow({ c, alreadyContacted, isAttention, on
   )
 })
 
-const UFSection = memo(function UFSection({ uf, rows, tableHead, contactedToday, rowProps, isOpen, onToggle, loadingRows }) {
+const UFSection = memo(function UFSection({ uf, count, rows, tableHead, contactedToday, rowProps, isOpen, onToggle, loadingRows }) {
+  const displayCount = count ?? rows?.length
   return (
     <div className="table-wrapper">
       <button
@@ -192,7 +193,7 @@ const UFSection = memo(function UFSection({ uf, rows, tableHead, contactedToday,
         <MapPin size={14} className="text-sky-400" />
         <span className="font-semibold text-zinc-100 text-sm">{uf}</span>
         <span className="text-zinc-500 text-xs">
-          {rows ? `${rows.length} cliente${rows.length !== 1 ? 's' : ''}` : '...'}
+          {displayCount != null ? `${displayCount} cliente${displayCount !== 1 ? 's' : ''}` : '...'}
         </span>
         {isOpen
           ? <ChevronUp size={14} className="ml-auto text-zinc-600" />
@@ -292,36 +293,45 @@ export function ClientsPage() {
     () => savedFilters() || { search: '', status_id: '', uf: '', ativo: '', ja_cliente: '', catalogo_enviado: '', page: 1 }
   )
 
-  // Lazy mode: state view sem nenhum filtro ativo
+  // Lazy mode: state view sem nenhum filtro ativo (incluindo UF)
   const isLazyMode = viewMode === 'state'
     && !filters.search && !filters.status_id && !filters.ativo
-    && !filters.ja_cliente && !filters.catalogo_enviado
+    && !filters.ja_cliente && !filters.catalogo_enviado && !filters.uf
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const today = new Date().toLocaleDateString('en-CA')
-      const [details] = await Promise.all([api.getReportDetails(today)])
+      const [details, overdueData] = await Promise.all([
+        api.getReportDetails(today),
+        api.getOverdueClients(attentionDays),
+      ])
       setContactedToday(new Set(details.details.contacted.map(c => c.client_id)))
+      setOverdueSection(overdueData)
 
       if (isLazyMode) {
-        // Carrega apenas UFs + contagem + seções especiais (Atenção e Novos)
-        const [ufData, overdueData, newData] = await Promise.all([
+        // Carrega apenas UFs + contagem + seção Novos
+        const [ufData, newData] = await Promise.all([
           api.listClientUFs(),
-          api.getOverdueClients(attentionDays),
           api.listClients({ sort: 'created_at_desc', limit: 100 }),
         ])
         setUfSummary(ufData)
         setTotal(ufData.reduce((s, r) => s + r.count, 0))
-        setOverdueSection(overdueData)
         setNewSection(newData.data.filter(c => isCreatedToday(c.created_at)))
         setUfCache(new Map()) // invalida cache de UFs ao recarregar
         setClients([])
       } else {
         // Com filtros ou list view: carrega clientes normalmente
         const base = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== ''))
+        let listSort = 'created_at'
+        if (viewMode === 'list') {
+          if (contactSort === 'asc')       listSort = 'contato_asc'
+          else if (contactSort === 'desc') listSort = 'contato_desc'
+          else if (nameSort === 'asc')     listSort = 'nome_asc'
+          else                             listSort = 'nome_desc'
+        }
         const params = viewMode === 'list'
-          ? { ...base, limit: 50, page: filters.page || 1 }
+          ? { ...base, limit: 50, page: filters.page || 1, sort: listSort }
           : { ...base, sort: 'uf', limit: 9999, page: 1 }
         const result = await api.listClients(params)
         setClients(result.data)
@@ -330,7 +340,7 @@ export function ClientsPage() {
     } finally {
       setLoading(false)
     }
-  }, [filters, viewMode, isLazyMode, attentionDays])
+  }, [filters, viewMode, isLazyMode, attentionDays, nameSort, contactSort])
 
   // Carrega clientes de uma UF específica no lazy mode (com cache)
   const loadUF = useCallback(async (uf) => {
@@ -777,7 +787,8 @@ export function ClientsPage() {
               <UFSection
                 key={uf}
                 uf={uf}
-                rows={rows ?? (isOpen ? [] : [{ id: '__placeholder' }])}
+                count={count}
+                rows={rows}
                 tableHead={tableHead}
                 contactedToday={contactedToday}
                 rowProps={rowProps}
@@ -802,7 +813,7 @@ export function ClientsPage() {
 
     return (
       <div className="space-y-6">
-        {renderAttentionSection(attentionOpen, setAttentionOpen)}
+        {renderAttentionSection(attentionOpen, setAttentionOpen, overdueSection)}
 
         {newClients.length > 0 && (
           <div className="table-wrapper">
@@ -857,14 +868,14 @@ export function ClientsPage() {
 
     return (
       <>
-        {renderAttentionSection(listAttentionOpen, setListAttentionOpen)}
+        {renderAttentionSection(listAttentionOpen, setListAttentionOpen, overdueSection)}
 
         {clients.length > 0 && (
           <div className="table-wrapper">
             <table className="table">
               {tableHead}
               <tbody>
-                {sortClients(clients).map(c => (
+                {clients.map(c => (
                   <ClientRow
                     key={c.id}
                     c={c}

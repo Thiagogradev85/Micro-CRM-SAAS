@@ -60,7 +60,13 @@ export const ClientModel = {
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
-    const orderBy = sort === 'uf' ? 'c.uf ASC NULLS LAST, c.nome ASC' : 'c.created_at DESC'
+    const orderBy =
+      sort === 'uf'              ? 'c.uf ASC NULLS LAST, c.nome ASC' :
+      sort === 'nome_asc'        ? 'c.nome ASC' :
+      sort === 'nome_desc'       ? 'c.nome DESC' :
+      sort === 'contato_asc'     ? 'c.ultimo_contato ASC NULLS FIRST' :
+      sort === 'contato_desc'    ? 'c.ultimo_contato DESC NULLS LAST' :
+                                   'c.created_at DESC'
     const offset = (page - 1) * limit
 
     params.push(limit)
