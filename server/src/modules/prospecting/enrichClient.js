@@ -10,13 +10,21 @@ const IG_BLOCKED = new Set([
 ])
 
 function extractInstagram(text) {
-  // Só extrai a partir de URL real: instagram.com/handle
-  // Nunca usa fallback @handle — muito propenso a falsos positivos
+  // Prioridade 1: URL real — instagram.com/handle ou instagr.am/handle
   const matches = [...text.matchAll(/(?:instagram\.com|instagr\.am)\/([A-Za-z0-9_.]{3,30})(?:[/?#]|$)/gi)]
   for (const m of matches) {
     const handle = m[1]
     if (!IG_BLOCKED.has(handle.toLowerCase())) return handle
   }
+
+  // Prioridade 2: menção explícita com prefixo (comum em snippets do Facebook/Google)
+  // Ex: "Instagram: @bikeloja" | "IG: @bikeshop" | "instagram @conta_loja"
+  const mentionMatch = text.match(/(?:instagram|ig)\s*[:\s@]+([A-Za-z0-9_.]{3,30})/i)
+  if (mentionMatch) {
+    const handle = mentionMatch[1]
+    if (!IG_BLOCKED.has(handle.toLowerCase()) && /^[A-Za-z0-9]/.test(handle)) return handle
+  }
+
   return null
 }
 
@@ -260,9 +268,11 @@ export async function enrichClient(client) {
     client.instagram ? Promise.resolve(null) : searchWeb(`${baseQuoted} site:instagram.com`),
     // Facebook: idem
     client.facebook  ? Promise.resolve(null) : searchWeb(`${baseQuoted} site:facebook.com`),
+    // Email dedicado: busca explícita de email mesmo quando geral não encontrou
+    client.email     ? Promise.resolve(null) : searchWeb(`${quotedName} email contato`),
   ]
 
-  const [generalRes, igRes, fbRes] = await Promise.allSettled(searches)
+  const [generalRes, igRes, fbRes, emailRes] = await Promise.allSettled(searches)
 
   // Agrega dados de todas as fontes
   let cidade    = client.cidade    || null
@@ -328,22 +338,57 @@ export async function enrichClient(client) {
       facebook = extractFacebook(fbOrganic[0].link)
     }
 
-    // Snippet da página do Facebook frequentemente contém telefone e email
+    // Snippets e sitelinks do Facebook — contêm telefone, email e frequentemente Instagram
     for (const r of fbOrganic.slice(0, 5)) {
-      const text = [r.link, r.title, r.snippet].filter(Boolean).join(' ')
-      if (!phone) phone = extractPhone(text, uf)
-      if (!email) email = extractEmail(text)
-      if (phone && email) break
+      const sitelinksText = (r.sitelinks || []).map(s => `${s.title || ''} ${s.link || ''} ${s.snippet || ''}`).join(' ')
+      const text = [r.link, r.title, r.snippet, sitelinksText].filter(Boolean).join(' ')
+      if (!phone)     phone     = extractPhone(text, uf)
+      if (!email)     email     = extractEmail(text)
+      if (!instagram) instagram = extractInstagram(text)
+      if (phone && email && instagram) break
+    }
+
+    // Varre o JSON completo dos resultados do Facebook para email e instagram
+    if (!email || !instagram) {
+      const fbFullText = JSON.stringify(fbRes.value)
+      if (!email)     email     = extractEmail(fbFullText)
+      if (!instagram) instagram = extractInstagram(fbFullText)
     }
 
     // Knowledge graph do resultado de Facebook
     if (fbRes.value.knowledgeGraph) {
       const kg = parseKnowledgeGraph(fbRes.value.knowledgeGraph, uf)
-      if (!cidade)   cidade   = kg.cidade   || null
-      if (!phone)    phone    = kg.phone    || null
-      if (!email)    email    = kg.email    || null
-      if (!facebook) facebook = kg.facebook || null
+      if (!cidade)    cidade    = kg.cidade    || null
+      if (!phone)     phone     = kg.phone     || null
+      if (!email)     email     = kg.email     || null
+      if (!facebook)  facebook  = kg.facebook  || null
+      if (!instagram) instagram = kg.instagram || null
     }
+  }
+
+  // ── Busca de email dedicada ──────────────────────────────────────────────────
+  if (!email && emailRes.status === 'fulfilled' && emailRes.value) {
+    const e = parseResults(emailRes.value, uf)
+    if (!email)     email     = e.email
+    if (!instagram) instagram = e.instagram
+    if (!phone)     phone     = e.phone
+    if (!cidade)    cidade    = e.cidade
+    // Varre JSON completo do resultado de email
+    if (!email) email = extractEmail(JSON.stringify(emailRes.value))
+  }
+
+  // ── Fallback Instagram: busca sem cidade/UF se ainda não encontrou ───────────
+  if (!instagram) {
+    try {
+      const igFallback = await searchWeb(`${quotedName} site:instagram.com`)
+      if (igFallback?.organic?.length) {
+        for (const r of igFallback.organic) {
+          if (!r.link?.includes('instagram.com')) continue
+          const handle = extractInstagram(r.link)
+          if (handle) { instagram = handle; break }
+        }
+      }
+    } catch { /* falha silenciosa — não bloqueia */ }
   }
 
   // ── Monta resultado final (só campos realmente ausentes no cliente) ───────────
