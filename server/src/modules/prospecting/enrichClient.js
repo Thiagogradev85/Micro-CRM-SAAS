@@ -265,10 +265,11 @@ export async function enrichClient(client) {
   // Determina quais buscas ainda fazem sentido para este cliente
   const searches = [
     searchWeb(`${base} contato telefone email whatsapp`),
-    // Instagram: usa nome entre aspas para resultado mais preciso
-    client.instagram ? Promise.resolve(null) : searchWeb(`${baseQuoted} site:instagram.com`),
+    // Instagram: sem aspas — busca por relevância, não correspondência exata
+    // Aspas rejeitam perfis com nome ligeiramente diferente (ex: "BrandtBike Shop" vs "BRANDT BIKE")
+    client.instagram ? Promise.resolve(null) : searchWeb(`${base} site:instagram.com`),
     // Facebook: idem
-    client.facebook  ? Promise.resolve(null) : searchWeb(`${baseQuoted} site:facebook.com`),
+    client.facebook  ? Promise.resolve(null) : searchWeb(`${base} site:facebook.com`),
     // Email dedicado: busca explícita de email mesmo quando geral não encontrou
     client.email     ? Promise.resolve(null) : searchWeb(`${quotedName} email contato`),
   ]
@@ -378,10 +379,10 @@ export async function enrichClient(client) {
     if (!email) email = extractEmail(JSON.stringify(emailRes.value))
   }
 
-  // ── Fallback Instagram: busca sem cidade/UF se ainda não encontrou ───────────
+  // ── Fallback Instagram: busca só pelo nome, sem cidade/UF, sem aspas ────────
   if (!instagram) {
     try {
-      const igFallback = await searchWeb(`${quotedName} site:instagram.com`)
+      const igFallback = await searchWeb(`${client.nome} site:instagram.com`)
       if (igFallback?.organic?.length) {
         for (const r of igFallback.organic) {
           if (!r.link?.includes('instagram.com')) continue
