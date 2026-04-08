@@ -96,3 +96,13 @@ export function statusPill(cor) {
     whiteSpace: 'nowrap',
   }
 }
+
+// ── BroadcastChannel — sincroniza abas após mutações de clientes ─────────────
+export function broadcastClient(type, id) {
+  try {
+    const ch = new BroadcastChannel('crm_clients')
+    ch.postMessage({ type, id: typeof id === 'number' ? id : parseInt(id) })
+    ch.close()
+  } catch { /* navegadores sem suporte a BroadcastChannel */ }
+}
+

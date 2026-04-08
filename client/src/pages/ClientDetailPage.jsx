@@ -6,7 +6,7 @@ import {
   Mail, Facebook, Twitter, Linkedin, MapPin, Sparkles
 } from 'lucide-react'
 import { api } from '../utils/api.js'
-import { formatDate, formatDateTime, statusPill, NOTAS, UFS, whatsappLink, instagramLink, facebookLink, twitterLink, linkedinLink } from '../utils/constants.js'
+import { formatDate, formatDateTime, statusPill, NOTAS, UFS, whatsappLink, instagramLink, facebookLink, twitterLink, linkedinLink, broadcastClient } from '../utils/constants.js'
 import { useModal } from '../hooks/useModal.js'
 import { EnrichModal } from '../components/EnrichModal.jsx'
 
@@ -57,6 +57,7 @@ export function ClientDetailPage() {
           onClick: async () => {
             try {
               await api.deleteClient(client.id, false)
+              broadcastClient('client_deleted', client.id)
               navigate('/clients')
             } catch (err) {
               showModal({ type: 'error', title: 'Erro', message: err.message })
@@ -69,6 +70,7 @@ export function ClientDetailPage() {
           onClick: async () => {
             try {
               await api.deleteClient(client.id, true)
+              broadcastClient('client_deleted', client.id)
               navigate('/clients')
             } catch (err) {
               showModal({ type: 'error', title: 'Erro', message: err.message })
@@ -166,20 +168,16 @@ export function ClientDetailPage() {
       catalogo_enviado: form.catalogo_enviado,
       updated_at:       updatedAt ?? undefined,
     })
+    broadcastClient('client_updated', id)
     showModal({ type: 'success', title: 'Sucesso', message: 'Cliente atualizado!' })
     setEditing(false)
     load()
-    // Notifica outras abas que este cliente foi atualizado
-    try {
-      const ch = new BroadcastChannel('crm_clients')
-      ch.postMessage({ type: 'client_updated', id: parseInt(id) })
-      ch.close()
-    } catch { /* navegadores antigos sem suporte */ }
   }
 
   async function handlePurchase() {
     try {
       await api.registerPurchase(id)
+      broadcastClient('client_updated', id)
       showModal({ type: 'success', title: 'Compra registrada!', message: 'Compra registrada no relatório diário.' })
     } catch (err) {
       showModal({ type: 'error', title: 'Erro', message: err.message })

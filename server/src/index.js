@@ -99,7 +99,8 @@ app.use((err, req, res, _next) => {
     return res.status(err.statusCode).json({ error: err.message })
   }
   console.error('[Erro inesperado]', err)
-  res.status(500).json({ error: 'Erro interno do servidor. Verifique os logs.' })
+  const isDev = process.env.NODE_ENV !== 'production'
+  res.status(500).json({ error: isDev ? (err.message || String(err)) : 'Erro interno do servidor. Verifique os logs.' })
 })
 
 app.listen(PORT, () => {

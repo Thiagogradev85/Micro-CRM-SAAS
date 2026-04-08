@@ -16,7 +16,7 @@ function savedFilters() {
   try { return JSON.parse(sessionStorage.getItem(FILTERS_KEY)) } catch { return null }
 }
 import { api } from '../utils/api.js'
-import { formatDate, statusPill, NOTAS, UFS, whatsappLink, instagramLink } from '../utils/constants.js'
+import { formatDate, statusPill, NOTAS, UFS, whatsappLink, instagramLink, broadcastClient } from '../utils/constants.js'
 import { ClientForm } from '../components/ClientForm.jsx'
 import { EmptyState } from '../components/EmptyState.jsx'
 import { useModal } from '../hooks/useModal.js'
@@ -421,7 +421,8 @@ export function ClientsPage() {
     let ch
     try { ch = new BroadcastChannel('crm_clients') } catch { return }
     ch.onmessage = (e) => {
-      if (e.data?.type !== 'client_updated') return
+      const type = e.data?.type
+      if (type !== 'client_updated' && type !== 'client_deleted' && type !== 'client_created') return
       if (isStateView) {
         // Invalida o cache e incrementa versão para re-trigger do auto-load
         setUfCache(new Map())
@@ -449,6 +450,7 @@ export function ClientsPage() {
   async function handleContact(client) {
     try {
       await api.updateClient(client.id, { status_id: statuses.find(s => s.nome === 'Contatado')?.id })
+      broadcastClient('client_updated', client.id)
       setContactedToday(prev => new Set([...prev, client.id]))
       showModal({ type: 'success', title: 'Status atualizado', message: `${client.nome} marcado como Contatado!` })
       load()
@@ -469,6 +471,7 @@ export function ClientsPage() {
           onClick: async () => {
             try {
               await api.deleteClient(client.id, false)
+              broadcastClient('client_deleted', client.id)
               showModal({ type: 'success', title: 'Concluído', message: `${client.nome} inativado.` })
               load()
             } catch (err) {
@@ -482,6 +485,7 @@ export function ClientsPage() {
           onClick: async () => {
             try {
               await api.deleteClient(client.id, true)
+              broadcastClient('client_deleted', client.id)
               showModal({ type: 'success', title: 'Concluído', message: `${client.nome} excluído permanentemente.` })
               load()
             } catch (err) {
@@ -505,6 +509,7 @@ export function ClientsPage() {
           onClick: async () => {
             try {
               await api.deleteClient(client.id, true)
+              broadcastClient('client_deleted', client.id)
               showModal({ type: 'success', title: 'Concluído', message: `${client.nome} excluído permanentemente.` })
               load()
             } catch (err) {
@@ -530,6 +535,7 @@ export function ClientsPage() {
   async function handleDeleteDuplicate(client, groupIdx) {
     try {
       await api.deleteClient(client.id, true)
+      broadcastClient('client_deleted', client.id)
       setDupModal(prev => {
         const groups = prev.groups
           .map((g, i) => i === groupIdx ? g.filter(c => c.id !== client.id) : g)
@@ -546,6 +552,7 @@ export function ClientsPage() {
     for (const { id, fields } of patches) {
       if (Object.keys(fields).length > 0) {
         await api.updateClient(id, fields)
+        broadcastClient('client_updated', id)
       }
     }
     load()
@@ -553,7 +560,8 @@ export function ClientsPage() {
 
   async function handleCreate(data) {
     try {
-      await api.createClient(data)
+      const created = await api.createClient(data)
+      broadcastClient('client_created', created?.id)
       setShowForm(false)
       showModal({ type: 'success', title: 'Cliente criado', message: 'Cliente criado com sucesso!' })
       load()
