@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Mail, Wifi, WifiOff, Send, Users, Settings,
-  Clock, AlertTriangle, Loader2, ChevronDown, X
+  Clock, AlertTriangle, Loader2, ChevronDown, X,
+  Paperclip, FileText, Upload, BookOpen
 } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { UFS } from '../utils/constants.js'
@@ -124,6 +125,11 @@ Equipe de Vendas`
   const [testEmail, setTestEmail]           = useState('')
   const [sendingTest, setSendingTest]       = useState(false)
 
+  // ── Anexo ──────────────────────────────────────────
+  const [attachment, setAttachment] = useState({ type: 'none', catalogId: '', file: null, fileName: '' })
+  const [catalogs, setCatalogs]     = useState([])
+  const fileInputRef                = useRef(null)
+
   const { modal, showModal } = useModal()
 
   // ── Polling de status ──────────────────────────────
@@ -137,6 +143,7 @@ Equipe de Vendas`
   useEffect(() => {
     pollStatus()
     api.listStatuses().then(setStatuses).catch(() => {})
+    api.listCatalogs().then(setCatalogs).catch(() => {})
     const isSending = status.sendState?.status === 'sending'
     const interval = setInterval(pollStatus, isSending ? POLL_INTERVAL_SENDING : POLL_INTERVAL_IDLE)
     return () => clearInterval(interval)
@@ -219,6 +226,22 @@ Equipe de Vendas`
     } finally { setLoadingPreview(false) }
   }
 
+  // Monta payload: FormData quando há anexo, JSON quando não há
+  function buildPayload(extra = {}) {
+    if (attachment.type === 'none') return extra
+
+    const fd = new FormData()
+    Object.entries(extra).forEach(([k, v]) => { if (v !== undefined && v !== null) fd.append(k, v) })
+
+    if (attachment.type === 'catalog' && attachment.catalogId) {
+      fd.append('catalog_id', attachment.catalogId)
+    } else if (attachment.type === 'file' && attachment.file) {
+      fd.append('attachment', attachment.file)
+    }
+
+    return fd
+  }
+
   // ── Enviar e-mail de teste ─────────────────────────
   async function handleSendTest() {
     if (!testEmail.trim()) return showModal({ type: 'warning', title: 'Campo obrigatório', message: 'Informe um e-mail de destino para o teste.' })
@@ -226,7 +249,7 @@ Equipe de Vendas`
     if (!message.trim())   return showModal({ type: 'warning', title: 'Campo obrigatório', message: 'Escreva a mensagem antes de testar.' })
     setSendingTest(true)
     try {
-      const result = await api.emailSendTest({ to: testEmail, subject, message })
+      const result = await api.emailSendTest(buildPayload({ to: testEmail, subject, message }))
       showModal({ type: 'success', title: 'Teste enviado!', message: result.message })
     } catch (err) {
       showModal({ type: 'error', title: 'Erro no envio de teste', message: err.message })
@@ -245,7 +268,7 @@ Equipe de Vendas`
       const params = {}
       if (filters.status_id) params.status_id = filters.status_id
       if (filters.ufs.length > 0) params.ufs = filters.ufs.join(',')
-      await api.emailSendBulk({ ...params, subject, message, delay_ms: delayMs })
+      await api.emailSendBulk(buildPayload({ ...params, subject, message, delay_ms: delayMs }))
       showModal({ type: 'info', title: 'Envio iniciado', message: `Enviando para ${preview.total} clientes em background. Você será avisado quando terminar.` })
     } catch (err) {
       showModal({ type: 'error', title: 'Erro ao iniciar envio', message: err.message })
@@ -525,10 +548,108 @@ Equipe de Vendas`
         </div>
       </div>
 
+      {/* ── Card de Anexo ── */}
+      <div className="card space-y-4">
+        <div>
+          <h2 className="font-semibold text-zinc-200 flex items-center gap-2">
+            <Paperclip size={16} className="text-zinc-400" />
+            3. Anexo (opcional)
+          </h2>
+          <p className="text-xs text-zinc-500 mt-0.5">PDF ou imagem enviado junto ao e-mail. Use para catálogos, folders e apresentações.</p>
+        </div>
+
+        {/* Tipo de anexo */}
+        <div className="flex gap-2 flex-wrap">
+          {[
+            { value: 'none',    label: 'Nenhum',          icon: X },
+            { value: 'catalog', label: 'Catálogo do CRM', icon: BookOpen },
+            { value: 'file',    label: 'Upload de arquivo', icon: Upload },
+          ].map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setAttachment(a => ({ ...a, type: value, file: null, fileName: '', catalogId: '' }))}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                attachment.type === value
+                  ? 'bg-sky-600 border-sky-500 text-white'
+                  : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+              }`}
+            >
+              <Icon size={12} /> {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Catálogo do CRM */}
+        {attachment.type === 'catalog' && (
+          <div>
+            <label className="label">Catálogo</label>
+            {catalogs.length === 0 ? (
+              <p className="text-xs text-zinc-500">Nenhum catálogo cadastrado. Crie um em <strong className="text-zinc-400">Catálogos</strong>.</p>
+            ) : (
+              <select
+                className="select"
+                value={attachment.catalogId}
+                onChange={e => setAttachment(a => ({ ...a, catalogId: e.target.value }))}
+              >
+                <option value="">Selecione um catálogo...</option>
+                {catalogs.map(c => (
+                  <option key={c.id} value={c.id}>{c.nome}</option>
+                ))}
+              </select>
+            )}
+            {attachment.catalogId && (
+              <p className="text-xs text-zinc-500 mt-1.5 flex items-center gap-1">
+                <FileText size={11} className="text-sky-400" />
+                PDF gerado automaticamente a partir dos produtos cadastrados
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Upload de arquivo */}
+        {attachment.type === 'file' && (
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
+              className="hidden"
+              onChange={e => {
+                const f = e.target.files[0]
+                if (f) setAttachment(a => ({ ...a, file: f, fileName: f.name }))
+              }}
+            />
+            {attachment.fileName ? (
+              <div className="flex items-center gap-2 bg-zinc-800/60 border border-zinc-700 rounded-lg px-3 py-2">
+                <FileText size={14} className="text-sky-400 shrink-0" />
+                <span className="text-sm text-zinc-300 flex-1 truncate">{attachment.fileName}</span>
+                <button
+                  type="button"
+                  onClick={() => { setAttachment(a => ({ ...a, file: null, fileName: '' })); fileInputRef.current.value = '' }}
+                  className="text-zinc-500 hover:text-zinc-300"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <Upload size={14} /> Escolher arquivo (PDF ou imagem)
+              </button>
+            )}
+            <p className="text-xs text-zinc-600 mt-1">Máximo 15 MB. Formatos: PDF, JPG, PNG, GIF, WebP.</p>
+          </div>
+        )}
+      </div>
+
       {/* ── Card de Teste ── */}
       <div className="card space-y-3">
         <div>
-          <h2 className="font-semibold text-zinc-200">3. Enviar e-mail de teste</h2>
+          <h2 className="font-semibold text-zinc-200">4. Enviar e-mail de teste</h2>
           <p className="text-xs text-zinc-500 mt-0.5">
             Envia o e-mail com dados fictícios (nome: <span className="text-zinc-400">Teste</span>, cidade: <span className="text-zinc-400">São Paulo - SP</span>) para conferir como vai chegar.
           </p>
@@ -563,7 +684,7 @@ Equipe de Vendas`
       {/* ── Card de Preview ── */}
       <div className="card space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-zinc-200">4. Preview do e-mail</h2>
+          <h2 className="font-semibold text-zinc-200">5. Preview do e-mail</h2>
           {previewClient && (
             <span className="text-xs text-zinc-500">exemplo: {previewClient.nome}</span>
           )}
@@ -595,13 +716,25 @@ Equipe de Vendas`
             <div className="px-4 py-4 text-zinc-300 whitespace-pre-wrap leading-relaxed">
               {previewMsg || <span className="text-zinc-600 italic">(sem corpo)</span>}
             </div>
+            {/* Chip de anexo */}
+            {attachment.type !== 'none' && (attachment.fileName || attachment.catalogId) && (
+              <div className="px-4 pb-3">
+                <span className="inline-flex items-center gap-1.5 text-xs bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-400">
+                  <Paperclip size={10} />
+                  {attachment.type === 'file'
+                    ? attachment.fileName
+                    : `${catalogs.find(c => String(c.id) === String(attachment.catalogId))?.nome || 'Catálogo'}.pdf`
+                  }
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {/* ── Enviar ── */}
       <div className="card space-y-3">
-        <h2 className="font-semibold text-zinc-200">5. Enviar</h2>
+        <h2 className="font-semibold text-zinc-200">6. Enviar</h2>
 
         {!isConnected && (
           <div className="flex items-center gap-2 text-sm text-yellow-400 bg-yellow-900/20 border border-yellow-800/30 rounded-lg p-3">

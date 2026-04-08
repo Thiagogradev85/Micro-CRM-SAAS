@@ -80,7 +80,8 @@ class EmailService {
   }
 
   // Envia um único e-mail
-  async sendMail({ to, subject, html, text }) {
+  // attachments = [{ filename, content (Buffer), contentType }] — compatível com nodemailer
+  async sendMail({ to, subject, html, text, attachments = [] }) {
     if (this.status !== 'connected') throw new Error('E-mail não está configurado/conectado.')
 
     try {
@@ -90,6 +91,7 @@ class EmailService {
         subject,
         html,
         text: text || html.replace(/<[^>]+>/g, ''),
+        attachments,
       })
     } catch (err) {
       throw new Error(friendlySmtpError(err))
@@ -97,7 +99,8 @@ class EmailService {
   }
 
   // Envia em lote com delay entre envios
-  async sendBulk({ clients, subject, message, delayMs = 5000, onProgress, onSent }) {
+  // attachments gerado uma vez e reutilizado em todos os envios do lote
+  async sendBulk({ clients, subject, message, delayMs = 5000, attachments = [], onProgress, onSent }) {
     if (this.status !== 'connected') throw new Error('E-mail não está configurado/conectado.')
 
     this.sendState = { status: 'sending', total: clients.length, sent: 0, failed: 0, errors: [], finishedAt: null }
@@ -115,7 +118,7 @@ class EmailService {
           .replace(/\{\{cidade\}\}/gi, client.cidade || '')
           .replace(/\{\{uf\}\}/gi, client.uf || '')
 
-        await this.sendMail({ to: client.email, subject: resolvedSubject, html: resolvedHtml })
+        await this.sendMail({ to: client.email, subject: resolvedSubject, html: resolvedHtml, attachments })
         this.sendState.sent++
         console.log(`[Email] Enviado para ${client.nome} (${client.email})`)
         if (onSent) await onSent(client)

@@ -1,6 +1,40 @@
-import { emailService } from '../modules/email/index.js'
-import { ClientModel } from '../models/ClientModel.js'
-import { AppError } from '../utils/AppError.js'
+import { emailService }       from '../modules/email/index.js'
+import { ClientModel }         from '../models/ClientModel.js'
+import { CatalogModel }        from '../models/CatalogModel.js'
+import { ProductModel }        from '../models/ProductModel.js'
+import { generateCatalogPdf }  from '../modules/file-export/generateCatalogPdf.js'
+import { AppError }            from '../utils/AppError.js'
+
+// Monta o array de attachments nodemailer a partir da request
+// Suporta: arquivo uploaded (req.file) OU catálogo do CRM (req.body.catalog_id)
+async function buildAttachments(req) {
+  const attachments = []
+
+  if (req.file) {
+    attachments.push({
+      filename:    req.file.originalname,
+      content:     req.file.buffer,
+      contentType: req.file.mimetype,
+    })
+    return attachments
+  }
+
+  const catalogId = req.body?.catalog_id
+  if (catalogId) {
+    const catalog  = await CatalogModel.get(catalogId)
+    if (!catalog) throw new AppError('Catálogo não encontrado.', 404)
+    const products = await ProductModel.listByCatalog(catalogId)
+    const pdfBuffer = await generateCatalogPdf({ catalog, products })
+    const safeName  = catalog.nome.replace(/[^a-z0-9áéíóúâêôãõüç\s-]/gi, '').trim().replace(/\s+/g, '_')
+    attachments.push({
+      filename:    `${safeName}.pdf`,
+      content:     pdfBuffer,
+      contentType: 'application/pdf',
+    })
+  }
+
+  return attachments
+}
 
 export const EmailController = {
   // GET /email/status
@@ -72,8 +106,10 @@ export const EmailController = {
         .replace(/\{\{cidade\}\}/gi, 'São Paulo')
         .replace(/\{\{uf\}\}/gi, 'SP')
 
-      await emailService.sendMail({ to, subject: resolvedSubject, html: resolvedHtml })
-      res.json({ message: `E-mail de teste enviado para ${to}` })
+      const attachments = await buildAttachments(req)
+      await emailService.sendMail({ to, subject: resolvedSubject, html: resolvedHtml, attachments })
+      const anexoMsg = attachments.length ? ` (com anexo: ${attachments[0].filename})` : ''
+      res.json({ message: `E-mail de teste enviado para ${to}${anexoMsg}` })
     } catch (err) {
       next(err instanceof AppError ? err : new AppError(err.message, 400))
     }
@@ -99,12 +135,15 @@ export const EmailController = {
         throw new AppError('Nenhum cliente com e-mail encontrado para os filtros selecionados.', 400)
       }
 
+      const attachments = await buildAttachments(req)
+
       res.json({ message: `Iniciando envio para ${clients.length} clientes...`, total: clients.length })
 
       emailService.sendBulk({
         clients,
         subject,
         message,
+        attachments,
         delayMs: Math.max(2000, parseInt(delay_ms)),
         onProgress: ({ current, total, results }) => {
           console.log(`[Email] Progresso: ${current}/${total} — enviados: ${results.sent}, erros: ${results.failed}`)
