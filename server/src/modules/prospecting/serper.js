@@ -79,10 +79,11 @@ export async function searchWeb(query) {
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
     const msg  = (body.message || '').toLowerCase()
+    console.error(`[Serper] ${response.status} para query="${query}" body=`, JSON.stringify(body))
+    if (msg.includes('not enough credits') || msg.includes('credits') || msg.includes('quota') || msg.includes('limit') || msg.includes('exceeded')) {
+      throw new AppError('SERPER_LIMIT_REACHED', 402)
+    }
     if (response.status === 403) {
-      if (msg.includes('limit') || msg.includes('quota') || msg.includes('exceeded')) {
-        throw new AppError('SERPER_LIMIT_REACHED', 402)
-      }
       throw new AppError('Chave Serper inválida.', 403)
     }
     throw new AppError(`Erro na API Serper: ${response.status}`, 502)

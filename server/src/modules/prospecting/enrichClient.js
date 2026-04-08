@@ -272,35 +272,37 @@ function nameMatchesHandle(clientName, handle) {
  * @returns {{ instagram?, facebook?, email?, whatsapp?, telefone? }}
  */
 export async function enrichClient(client) {
-  const base        = [client.nome, client.cidade, client.uf].filter(Boolean).join(' ')
-  const quotedName  = `"${client.nome}"` // aspas para busca exata
-  const baseQuoted  = [quotedName, client.cidade, client.uf].filter(Boolean).join(' ')
+  // Sanitiza campos — filtra strings "null"/"undefined" que vêm do banco como texto
+  const sanitize = v => (!v || v === 'null' || v === 'undefined') ? null : v
+  const nome       = sanitize(client.nome) || ''
+  const uf         = sanitize(client.uf)
+  const cidadeOrig = sanitize(client.cidade)
 
-  console.log(`[Enrich] cliente="${client.nome}" cidade="${client.cidade}" uf="${client.uf}"`)
+  const base       = [nome, cidadeOrig, uf].filter(Boolean).join(' ')
+  const quotedName = `"${nome}"`
+
+  console.log(`[Enrich] cliente="${nome}" cidade="${cidadeOrig}" uf="${uf}"`)
+  console.log(`[Enrich] base query: "${base}"`)
   console.log(`[Enrich] ja tem: instagram=${!!client.instagram} facebook=${!!client.facebook} email=${!!client.email}`)
 
   // Determina quais buscas ainda fazem sentido para este cliente
   const searches = [
     searchWeb(`${base} contato telefone email whatsapp`),
-    // Instagram: sem aspas — busca por relevância, não correspondência exata
-    // Aspas rejeitam perfis com nome ligeiramente diferente (ex: "BrandtBike Shop" vs "BRANDT BIKE")
     client.instagram ? Promise.resolve(null) : searchWeb(`${base} site:instagram.com`),
-    // Facebook: idem
     client.facebook  ? Promise.resolve(null) : searchWeb(`${base} site:facebook.com`),
-    // Email dedicado: busca explícita de email mesmo quando geral não encontrou
     client.email     ? Promise.resolve(null) : searchWeb(`${quotedName} email contato`),
   ]
 
   const [generalRes, igRes, fbRes, emailRes] = await Promise.allSettled(searches)
+  console.log(`[Enrich] statuses: general=${generalRes.status} ig=${igRes.status} fb=${fbRes.status} email=${emailRes.status}`)
+  if (igRes.status === 'rejected') console.log(`[Enrich] igRes error:`, igRes.reason?.message)
 
   // Agrega dados de todas as fontes
-  let cidade    = client.cidade    || null
+  let cidade    = cidadeOrig || null
   let instagram = client.instagram || null
   let facebook  = client.facebook  || null
   let email     = client.email     || null
   let phone     = null
-
-  const uf = client.uf || null
 
   // ── Resultado geral ──────────────────────────────────────────────────────────
   if (generalRes.status === 'fulfilled' && generalRes.value) {
@@ -323,7 +325,7 @@ export async function enrichClient(client) {
     for (const r of igOrganic) {
       if (!r.link?.includes('instagram.com')) continue
       const handle = extractInstagram(r.link)
-      if (handle && nameMatchesHandle(client.nome, handle)) { instagram = handle; break }
+      if (handle && nameMatchesHandle(nome, handle)) { instagram = handle; break }
     }
 
     // Passa 1b: título/snippet com correspondência de nome
@@ -332,7 +334,7 @@ export async function enrichClient(client) {
       for (const r of igOrganic.slice(0, 10)) {
         const text = [r.title, r.snippet].filter(Boolean).join(' ')
         const handle = extractInstagram(text)
-        if (handle && nameMatchesHandle(client.nome, handle)) { instagram = handle; break }
+        if (handle && nameMatchesHandle(nome, handle)) { instagram = handle; break }
       }
     }
 
@@ -369,7 +371,7 @@ export async function enrichClient(client) {
       for (const r of fbOrganic) {
         if (!r.link?.includes('facebook.com')) continue
         const slug = extractFacebook(r.link)
-        if (slug && nameMatchesHandle(client.nome, slug)) { facebook = slug; break }
+        if (slug && nameMatchesHandle(nome, slug)) { facebook = slug; break }
       }
     }
     // Passa 2: primeiro link de facebook.com
@@ -419,7 +421,7 @@ export async function enrichClient(client) {
   // ── Fallback Instagram A: busca só pelo nome sem cidade/UF (site:instagram.com) ──
   if (!instagram) {
     try {
-      const igFallback = await searchWeb(`${client.nome} site:instagram.com`)
+      const igFallback = await searchWeb(`${nome} site:instagram.com`)
       if (igFallback?.organic?.length) {
         for (const r of igFallback.organic) {
           if (!r.link?.includes('instagram.com')) continue
@@ -449,7 +451,7 @@ export async function enrichClient(client) {
         for (const r of igFree.organic.slice(0, 10)) {
           if (!r.link?.includes('instagram.com')) continue
           const handle = extractInstagram(r.link)
-          if (handle && nameMatchesHandle(client.nome, handle)) { instagram = handle; break }
+          if (handle && nameMatchesHandle(nome, handle)) { instagram = handle; break }
         }
         // Aceita qualquer link instagram.com
         if (!instagram) {
@@ -464,7 +466,7 @@ export async function enrichClient(client) {
           for (const r of igFree.organic.slice(0, 5)) {
             const text = [r.title, r.snippet].filter(Boolean).join(' ')
             const handle = extractInstagram(text)
-            if (handle && nameMatchesHandle(client.nome, handle)) { instagram = handle; break }
+            if (handle && nameMatchesHandle(nome, handle)) { instagram = handle; break }
           }
         }
       }
@@ -475,7 +477,7 @@ export async function enrichClient(client) {
   // ── Valida cidade contra a lista oficial de municípios do IBGE ──────────────
   // Descarta se não for um município real do estado (ex: "Sesc", "SIM", "Shopping")
   let cidadeNaoValidada = false
-  if (cidade && !client.cidade && uf) {
+  if (cidade && !cidadeOrig && uf) {
     const { valid, unavailable } = await validateCity(cidade, uf)
     if (!valid) {
       cidade = null
@@ -487,7 +489,7 @@ export async function enrichClient(client) {
   // ── Monta resultado final (só campos realmente ausentes no cliente) ───────────
   const result = {}
 
-  if (cidade    && !client.cidade)    result.cidade    = cidade
+  if (cidade    && !cidadeOrig)        result.cidade    = cidade
   if (cidadeNaoValidada && result.cidade) result._cidadeNaoValidada = true
   if (instagram && !client.instagram) result.instagram = instagram
   if (facebook  && !client.facebook)  result.facebook  = facebook
