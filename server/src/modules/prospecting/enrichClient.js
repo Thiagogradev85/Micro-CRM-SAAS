@@ -276,6 +276,9 @@ export async function enrichClient(client) {
   const quotedName  = `"${client.nome}"` // aspas para busca exata
   const baseQuoted  = [quotedName, client.cidade, client.uf].filter(Boolean).join(' ')
 
+  console.log(`[Enrich] cliente="${client.nome}" cidade="${client.cidade}" uf="${client.uf}"`)
+  console.log(`[Enrich] ja tem: instagram=${!!client.instagram} facebook=${!!client.facebook} email=${!!client.email}`)
+
   // Determina quais buscas ainda fazem sentido para este cliente
   const searches = [
     searchWeb(`${base} contato telefone email whatsapp`),
@@ -309,9 +312,12 @@ export async function enrichClient(client) {
     if (!phone)     phone     = g.phone
   }
 
+  console.log(`[Enrich] após geral: instagram=${instagram} facebook=${facebook} email=${email} phone=${phone} cidade=${cidade}`)
+
   // ── Resultado Instagram (site:instagram.com) ─────────────────────────────────
   if (!instagram && igRes.status === 'fulfilled' && igRes.value) {
     const igOrganic = igRes.value.organic || []
+    console.log(`[Enrich] igOrganic count=${igOrganic.length}`, igOrganic.slice(0,5).map(r => ({ link: r.link, title: r.title })))
 
     // Passa 1a: URL do link com correspondência de nome
     for (const r of igOrganic) {
@@ -351,6 +357,7 @@ export async function enrichClient(client) {
     // Passa 3: fallback geral (JSON completo do resultado)
     if (!instagram) instagram = parseResults(igRes.value, uf).instagram
     if (!cidade)    cidade    = parseResults(igRes.value, uf).cidade
+    console.log(`[Enrich] após igRes: instagram=${instagram}`)
   }
 
   // ── Resultado Facebook (site:facebook.com) ───────────────────────────────────
@@ -430,6 +437,7 @@ export async function enrichClient(client) {
     } catch { /* falha silenciosa */ }
   }
 
+  console.log(`[Enrich] após fallbackA: instagram=${instagram}`)
   // ── Fallback Instagram B: busca livre "nome instagram" (sem site:) ───────────
   // Captura casos onde site:instagram.com só retorna posts/reels bloqueados,
   // mas uma busca normal encontra o perfil via link direto nos resultados
@@ -463,6 +471,7 @@ export async function enrichClient(client) {
     } catch { /* falha silenciosa */ }
   }
 
+  console.log(`[Enrich] resultado final ANTES de validação: instagram=${instagram} facebook=${facebook} email=${email} cidade=${cidade}`)
   // ── Valida cidade contra a lista oficial de municípios do IBGE ──────────────
   // Descarta se não for um município real do estado (ex: "Sesc", "SIM", "Shopping")
   let cidadeNaoValidada = false
