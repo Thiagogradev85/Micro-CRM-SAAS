@@ -239,6 +239,24 @@ export function ClientDetailPage() {
       onChange={e => set(field, e.target.value)} placeholder={placeholder} />
   )
 
+  function formatCnpj(value) {
+    const d = String(value).replace(/\D/g, '').slice(0, 14)
+    if (d.length === 14) return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
+    return value
+  }
+
+  const inpCnpj = () => (
+    <input
+      className="input"
+      type="text"
+      value={form.cnpj || ''}
+      onChange={e => set('cnpj', e.target.value)}
+      onBlur={e => set('cnpj', formatCnpj(e.target.value))}
+      placeholder="00.000.000/0000-00"
+      maxLength={18}
+    />
+  )
+
   const section = (title) => (
     <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mt-1 mb-2">{title}</p>
   )
@@ -351,7 +369,7 @@ export function ClientDetailPage() {
               </div>
               <div>
                 <label className="label">CNPJ</label>
-                {inp('cnpj', '00.000.000/0000-00')}
+                {inpCnpj()}
               </div>
             </div>
 
