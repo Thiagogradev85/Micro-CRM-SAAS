@@ -93,13 +93,19 @@ export function linkedinLink(raw) {
   return `https://linkedin.com/company/${s.replace(/^\//, '')}`
 }
 
+// Remove DDI 55 do início se presente — normaliza para DDD + número (10-11 dígitos)
+// Ex: "5551936329332" → "51936329332" | "51936329332" → "51936329332"
+export function normalizePhone(raw) {
+  if (!raw) return raw
+  let digits = String(raw).replace(/\D/g, '')
+  if (digits.startsWith('55') && digits.length > 11) digits = digits.slice(2)
+  return digits || raw
+}
+
 export function whatsappLink(raw) {
   if (!raw) return null
-  let digits = String(raw).replace(/\D/g, '')
+  const digits = normalizePhone(raw)
   if (!digits) return null
-  // Remove o DDI 55 se já estiver presente, depois sempre adiciona
-  // Evita duplicar o 55 em números salvos como "5551936329332"
-  if (digits.startsWith('55') && digits.length > 11) digits = digits.slice(2)
   return `https://wa.me/55${digits}`
 }
 

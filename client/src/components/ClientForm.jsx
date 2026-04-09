@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../utils/api.js'
-import { UFS, NOTAS } from '../utils/constants.js'
+import { UFS, NOTAS, normalizePhone } from '../utils/constants.js'
 import { useAppModalError } from '../hooks/useAppModalError.js'
 
 const EMPTY = {
@@ -162,11 +162,17 @@ export function ClientForm({ initial = {}, onSave, onCancel }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="label">WhatsApp</label>
-            {inp('whatsapp', '5511...')}
+            <input className="input" type="text" value={form.whatsapp || ''}
+              onChange={e => set('whatsapp', e.target.value)}
+              onBlur={e => set('whatsapp', normalizePhone(e.target.value))}
+              placeholder="5511..." />
           </div>
           <div>
             <label className="label">Telefone Fixo</label>
-            {inp('telefone', '1133...')}
+            <input className="input" type="text" value={form.telefone || ''}
+              onChange={e => set('telefone', e.target.value)}
+              onBlur={e => set('telefone', normalizePhone(e.target.value))}
+              placeholder="1133..." />
           </div>
           <div className="sm:col-span-2">
             <label className="label">E-mail</label>

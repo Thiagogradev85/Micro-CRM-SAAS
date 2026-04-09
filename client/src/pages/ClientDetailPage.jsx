@@ -6,7 +6,7 @@ import {
   Mail, Facebook, Twitter, Linkedin, MapPin, Sparkles
 } from 'lucide-react'
 import { api } from '../utils/api.js'
-import { formatDate, formatDateTime, statusPill, NOTAS, UFS, whatsappLink, instagramLink, facebookLink, twitterLink, linkedinLink, broadcastClient, socialHandle } from '../utils/constants.js'
+import { formatDate, formatDateTime, statusPill, NOTAS, UFS, whatsappLink, instagramLink, facebookLink, twitterLink, linkedinLink, broadcastClient, socialHandle, normalizePhone } from '../utils/constants.js'
 import { useModal } from '../hooks/useModal.js'
 import { EnrichModal } from '../components/EnrichModal.jsx'
 
@@ -419,11 +419,17 @@ export function ClientDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="label">WhatsApp</label>
-                {inp('whatsapp', '5511...')}
+                <input className="input" type="text" value={form.whatsapp || ''}
+                  onChange={e => set('whatsapp', e.target.value)}
+                  onBlur={e => set('whatsapp', normalizePhone(e.target.value))}
+                  placeholder="5511..." />
               </div>
               <div>
                 <label className="label">Telefone Fixo</label>
-                {inp('telefone', '1133...')}
+                <input className="input" type="text" value={form.telefone || ''}
+                  onChange={e => set('telefone', e.target.value)}
+                  onBlur={e => set('telefone', normalizePhone(e.target.value))}
+                  placeholder="1133..." />
               </div>
               <div className="sm:col-span-2">
                 <label className="label">E-mail</label>
