@@ -19,7 +19,7 @@ export default function App() {
       <div className="flex h-screen overflow-hidden bg-zinc-950">
         <Sidebar />
         <WhatsAppProgressBar />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pt-12 md:pt-0">
           <Routes>
             <Route path="/" element={<Navigate to="/clients" replace />} />
             <Route path="/clients"     element={<ClientsPage />} />
