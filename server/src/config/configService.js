@@ -49,16 +49,18 @@ export async function loadConfigFromDb() {
 
 /** Salva ou atualiza um valor no banco E em process.env imediatamente. */
 export async function setConfig(key, value) {
+  const trimmed = value ? String(value).trim() : ''
   await db.query(
     `INSERT INTO settings (key, value, updated_at)
      VALUES ($1, $2, NOW())
      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-    [key, value ?? '']
+    [key, trimmed]
   )
-  if (value) {
-    process.env[key] = value
-  } else {
-    delete process.env[key]
+  // Atualiza process.env se há valor novo.
+  // Ao limpar (valor vazio), NÃO deleta process.env para preservar variáveis
+  // que vieram do Render ou do arquivo .env — elas continuam ativas.
+  if (trimmed) {
+    process.env[key] = trimmed
   }
 }
 
