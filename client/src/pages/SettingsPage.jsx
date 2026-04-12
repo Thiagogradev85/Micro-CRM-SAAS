@@ -74,7 +74,7 @@ const GROUPS = [
       {
         key: 'BRAVE_SEARCH_KEY',
         label: 'Brave Search Key',
-        description: 'API de busca da Brave. $5 crédito grátis/mês (~1.000 buscas). search.brave.com/api',
+        description: 'API de busca da Brave (pago). $5/mês inclui ~1.000 buscas. search.brave.com/api',
         placeholder: 'BSAxxxxxxxxxxxxxxxxx',
         testable: true,
       },
@@ -393,7 +393,7 @@ export function SettingsPage() {
       ],
       BRAVE_SEARCH_KEY: [
         'Acesse api.search.brave.com → crie uma conta → gere uma API Key.',
-        'Inclui $5 de crédito grátis por mês (~1.000 buscas).',
+        'Serviço pago — $5/mês inclui ~1.000 buscas.',
       ],
       BING_SEARCH_KEY: [
         'Acesse portal.azure.com → crie o recurso "Bing Search v7".',
