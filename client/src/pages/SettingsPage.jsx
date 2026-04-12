@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { useModal } from '../hooks/useModal.jsx'
+import { PasswordPromptModal } from '../components/PasswordPromptModal.jsx'
 
 // ─── Definição dos grupos e chaves ───────────────────────────────────────────
 const GROUPS = [
@@ -124,7 +125,6 @@ export function SettingsPage() {
   const [values, setValues]       = useState({})
   const [revealedValues, setRevealedValues] = useState({}) // {KEY: string} valor real revelado
   const [revealPrompt, setRevealPrompt]   = useState(null) // { key, label } | null
-  const [revealPwd, setRevealPwd]         = useState('')
   const [revealPwdError, setRevealPwdError] = useState('')
   const [saving, setSaving]       = useState({})
   const [testing, setTesting]     = useState({})
@@ -317,13 +317,13 @@ export function SettingsPage() {
     setRevealPrompt({ key, label })
   }
 
-  async function submitReveal(e) {
-    e?.preventDefault()
-    if (!revealPwd || !revealPrompt) return
+  async function submitReveal(password) {
+    if (!password || !revealPrompt) return
     const { key } = revealPrompt
     setRevealing(r => ({ ...r, [key]: true }))
+    setRevealPwdError('')
     try {
-      const data = await api.revealSetting(revealPwd, key)
+      const data = await api.revealSetting(password, key)
       if (data.ok) {
         setRevealedValues(v => ({ ...v, [key]: data.value }))
         setTimeout(() => setRevealedValues(v => {
@@ -710,66 +710,17 @@ export function SettingsPage() {
         </p>
       </div>
 
-      {/* ── Modal de senha para revelar chave ── */}
-      {revealPrompt && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-4"
-          onClick={e => { if (e.target === e.currentTarget) setRevealPrompt(null) }}
-        >
-          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl w-full max-w-sm p-6">
-            <div className="flex flex-col items-center text-center gap-2 mb-5">
-              <div className="w-12 h-12 bg-sky-600/20 rounded-full flex items-center justify-center">
-                <Eye size={22} className="text-sky-400" />
-              </div>
-              <h3 className="text-white font-bold text-base">Revelar chave</h3>
-              <p className="text-zinc-400 text-sm">
-                Digite a senha de admin para ver o valor de{' '}
-                <span className="font-mono text-zinc-300">{revealPrompt.label}</span>.
-              </p>
-            </div>
-
-            <form onSubmit={submitReveal} className="flex flex-col gap-3">
-              <input
-                type="password"
-                value={revealPwd}
-                onChange={e => { setRevealPwd(e.target.value); setRevealPwdError('') }}
-                placeholder="Senha de admin"
-                autoFocus
-                className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500
-                           rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-              />
-              {revealPwdError && (
-                <div className="flex items-center gap-2 bg-red-950/50 border border-red-800/50 rounded-lg px-3 py-2">
-                  <XCircle size={14} className="text-red-400 flex-shrink-0" />
-                  <p className="text-red-300 text-xs">{revealPwdError}</p>
-                </div>
-              )}
-              <div className="flex gap-2 mt-1">
-                <button
-                  type="button"
-                  onClick={() => setRevealPrompt(null)}
-                  className="flex-1 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300
-                             text-sm font-medium transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={!revealPwd || revealing[revealPrompt.key]}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg
-                             bg-sky-600 hover:bg-sky-500 text-white text-sm font-medium transition-colors
-                             disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {revealing[revealPrompt.key]
-                    ? <Loader2 size={14} className="animate-spin" />
-                    : <Eye size={14} />}
-                  Revelar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <PasswordPromptModal
+        open={!!revealPrompt}
+        title="Revelar chave"
+        description={revealPrompt ? `Digite a senha de admin para ver o valor de ${revealPrompt.label}.` : ''}
+        confirmLabel="Revelar"
+        confirmIcon={Eye}
+        loading={revealPrompt ? !!revealing[revealPrompt.key] : false}
+        error={revealPwdError}
+        onConfirm={submitReveal}
+        onClose={() => { setRevealPrompt(null); setRevealPwdError('') }}
+      />
     </div>
   )
 }
