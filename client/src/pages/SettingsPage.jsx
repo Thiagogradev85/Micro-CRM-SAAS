@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Settings, Lock, Eye, EyeOff, CheckCircle, XCircle,
-  Loader2, Save, FlaskConical, AlertTriangle, RefreshCw,
+  Loader2, Save, FlaskConical, AlertTriangle, RefreshCw, Trash2,
 } from 'lucide-react'
 import { api } from '../utils/api.js'
+import { useModal } from '../hooks/useModal.jsx'
 
 // ─── Definição dos grupos e chaves ───────────────────────────────────────────
 const GROUPS = [
@@ -18,7 +19,7 @@ const GROUPS = [
         description: 'String de conexão do Neon. Configure no painel do Render (obrigatório para o app iniciar).',
         placeholder: 'postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require',
         testable: true,
-        readOnly: true, // não editável via UI — deve vir do Render
+        readOnly: true,
       },
     ],
   },
@@ -67,7 +68,7 @@ const GROUPS = [
         label: 'Google CSE CX',
         description: 'ID do seu mecanismo de busca no Google CSE.',
         placeholder: 'xxxxxxxxxxxxxxx',
-        testable: true, // testa junto com GOOGLE_CSE_KEY
+        testable: true,
       },
       {
         key: 'BRAVE_SEARCH_KEY',
@@ -111,18 +112,21 @@ const GROUPS = [
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export function SettingsPage() {
-  const [authed, setAuthed]   = useState(() => sessionStorage.getItem('settings_authed') === '1')
+  const { modal, showModal } = useModal()
+
+  const [authed, setAuthed]     = useState(() => sessionStorage.getItem('settings_authed') === '1')
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
 
-  const [config, setConfig]   = useState([])  // [{key, configured, masked, source}]
-  const [loading, setLoading] = useState(false)
-  const [values, setValues]   = useState({})  // {KEY: valor digitado}
-  const [showValues, setShowValues] = useState({}) // {KEY: bool}
-  const [saving, setSaving]   = useState({})  // {KEY: bool}
-  const [testing, setTesting] = useState({})  // {KEY: bool}
-  const [results, setResults] = useState({})  // {KEY: {ok, message}}
+  const [config, setConfig]     = useState([])
+  const [loading, setLoading]   = useState(false)
+  const [values, setValues]     = useState({})
+  const [showValues, setShowValues] = useState({})
+  const [saving, setSaving]     = useState({})
+  const [testing, setTesting]   = useState({})
+  const [clearing, setClearing] = useState({})
+  const [saved, setSaved]       = useState({})  // {KEY: bool} — badge verde temporário
 
   // ── Carrega config ao autenticar ──
   const fetchConfig = useCallback(async () => {
@@ -130,10 +134,16 @@ export function SettingsPage() {
     try {
       const data = await api.getSettings()
       setConfig(data)
+    } catch (err) {
+      showModal({
+        type: 'error',
+        title: 'Erro ao carregar configurações',
+        message: err.message || 'Não foi possível buscar as configurações do servidor.',
+      })
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [showModal])
 
   useEffect(() => {
     if (authed) fetchConfig()
@@ -159,46 +169,154 @@ export function SettingsPage() {
   // ── Salvar chave individual ──
   async function handleSave(key) {
     const value = values[key]
-    if (value === undefined) return
+    if (!value) return
     setSaving(s => ({ ...s, [key]: true }))
-    setResults(r => ({ ...r, [key]: null }))
     try {
       const pwd = sessionStorage.getItem('settings_password') || password
       await api.saveSettings(pwd, { [key]: value })
-      setResults(r => ({ ...r, [key]: { ok: true, message: 'Salvo com sucesso!' } }))
+      setSaved(s => ({ ...s, [key]: true }))
+      setTimeout(() => setSaved(s => ({ ...s, [key]: false })), 3000)
+      setValues(v => { const n = { ...v }; delete n[key]; return n })
       await fetchConfig()
     } catch (err) {
-      setResults(r => ({ ...r, [key]: { ok: false, message: err.message || 'Erro ao salvar.' } }))
+      showModal({
+        type: 'error',
+        title: 'Erro ao salvar',
+        message: err.message || 'Não foi possível salvar a configuração.',
+        details: [
+          'Verifique se o servidor está rodando.',
+          'Confirme que a senha de acesso está correta.',
+        ],
+      })
     } finally {
       setSaving(s => ({ ...s, [key]: false }))
     }
   }
 
-  // ── Testar chave (envia valor digitado para salvar antes de testar) ──
+  // ── Testar chave ──
   async function handleTest(key) {
     setTesting(t => ({ ...t, [key]: true }))
-    setResults(r => ({ ...r, [key]: null }))
     try {
       const pwd = sessionStorage.getItem('settings_password') || password
-      const typedValue = values[key]  // valor digitado mas ainda não salvo
+      const typedValue = values[key]
       const data = await api.testSetting(pwd, key, typedValue || undefined)
-      setResults(r => ({ ...r, [key]: data }))
-      if (typedValue) await fetchConfig()  // atualiza badges se salvou junto
+
+      if (data.ok) {
+        showModal({
+          type: 'success',
+          title: 'Teste bem-sucedido!',
+          message: data.message,
+        })
+        if (typedValue) {
+          setSaved(s => ({ ...s, [key]: true }))
+          setTimeout(() => setSaved(s => ({ ...s, [key]: false })), 3000)
+          setValues(v => { const n = { ...v }; delete n[key]; return n })
+          await fetchConfig()
+        }
+      } else {
+        showModal({
+          type: 'error',
+          title: `Falha no teste — ${key}`,
+          message: data.message,
+          details: getTestErrorHints(key, data.message),
+        })
+      }
     } catch (err) {
-      setResults(r => ({ ...r, [key]: { ok: false, message: err.message || 'Erro no teste.' } }))
+      showModal({
+        type: 'error',
+        title: 'Erro ao testar',
+        message: err.message || 'Não foi possível realizar o teste.',
+        details: [
+          'Verifique se o servidor local está rodando (bun run dev).',
+          'Confirme que a chave foi salva corretamente.',
+        ],
+      })
     } finally {
       setTesting(t => ({ ...t, [key]: false }))
     }
+  }
+
+  // ── Limpar chave do banco (permite que o Render env var reassuma) ──
+  async function handleClear(key, label) {
+    showModal({
+      type: 'warning',
+      title: `Limpar ${label} do banco?`,
+      message: 'O valor salvo no banco será removido. Se houver uma variável de ambiente configurada no Render, ela será usada automaticamente na próxima inicialização.',
+      actions: [
+        {
+          label: 'Sim, limpar',
+          variant: 'danger',
+          onClick: async () => {
+            setClearing(c => ({ ...c, [key]: true }))
+            try {
+              const pwd = sessionStorage.getItem('settings_password') || password
+              await api.saveSettings(pwd, { [key]: '' })
+              await fetchConfig()
+            } catch (err) {
+              showModal({
+                type: 'error',
+                title: 'Erro ao limpar',
+                message: err.message || 'Não foi possível limpar o valor.',
+              })
+            } finally {
+              setClearing(c => ({ ...c, [key]: false }))
+            }
+          },
+        },
+      ],
+    })
   }
 
   function getConfigEntry(key) {
     return config.find(c => c.key === key)
   }
 
+  // Dicas específicas por chave para facilitar o diagnóstico
+  function getTestErrorHints(key, message = '') {
+    const hints = {
+      ANTHROPIC_API_KEY: [
+        'A chave deve começar com sk-ant-api03-...',
+        'Acesse console.anthropic.com → API Keys para gerar uma nova.',
+        'Verifique se há créditos disponíveis na sua conta Anthropic.',
+      ],
+      SERPER_API_KEY: [
+        'Acesse serper.dev → faça login → copie a API Key do dashboard.',
+        'O plano gratuito inclui 2.500 buscas/mês.',
+        'Certifique-se de copiar a chave completa sem espaços.',
+      ],
+      SERPAPI_KEY: [
+        'Acesse serpapi.com → faça login → copie a API Key.',
+        'O plano gratuito inclui 100 buscas/mês.',
+      ],
+      BRAVE_SEARCH_KEY: [
+        'Acesse api.search.brave.com → crie uma conta → gere uma API Key.',
+        'O plano gratuito inclui 2.000 buscas/mês.',
+      ],
+      BING_SEARCH_KEY: [
+        'Acesse portal.azure.com → crie o recurso "Bing Search v7".',
+        'Copie a Key 1 em "Keys and Endpoint".',
+      ],
+      GOOGLE_CSE_CX: [
+        'GOOGLE_CSE_KEY e GOOGLE_CSE_CX devem ambas estar configuradas.',
+        'Acesse programmablesearchengine.google.com para criar um mecanismo.',
+        'Ative a Custom Search API no Google Cloud Console.',
+      ],
+    }
+    const base = hints[key] || []
+    if (message.includes('401') || message.includes('403') || message.includes('invalid')) {
+      return ['Chave inválida ou sem permissão.', ...base]
+    }
+    if (message.includes('429') || message.includes('quota')) {
+      return ['Limite de requisições atingido. Aguarde ou verifique seu plano.', ...base]
+    }
+    return base
+  }
+
   // ── Tela de login ──
   if (!authed) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+        {modal}
         <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
           <div className="flex flex-col items-center mb-8">
             <div className="w-14 h-14 bg-sky-600/20 rounded-2xl flex items-center justify-center mb-4">
@@ -211,22 +329,21 @@ export function SettingsPage() {
           </div>
 
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
-            <div className="relative">
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Senha"
-                autoFocus
-                className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500
-                           rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-              />
-            </div>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Senha"
+              autoFocus
+              className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500
+                         rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+            />
 
             {authError && (
-              <p className="text-red-400 text-sm flex items-center gap-1.5">
-                <XCircle size={14} /> {authError}
-              </p>
+              <div className="flex items-center gap-2 bg-red-950/50 border border-red-800/50 rounded-lg px-3 py-2.5">
+                <XCircle size={15} className="text-red-400 flex-shrink-0" />
+                <p className="text-red-300 text-sm">{authError}</p>
+              </div>
             )}
 
             <button
@@ -252,6 +369,7 @@ export function SettingsPage() {
   // ── Tela principal ──
   return (
     <div className="min-h-screen bg-zinc-950 p-6">
+      {modal}
       <div className="max-w-3xl mx-auto">
 
         {/* Header */}
@@ -284,7 +402,7 @@ export function SettingsPage() {
           </div>
         </div>
 
-        {/* Aviso sobre DATABASE_URL */}
+        {/* Aviso DATABASE_URL */}
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6 flex gap-3">
           <AlertTriangle size={18} className="text-amber-400 flex-shrink-0 mt-0.5" />
           <div>
@@ -312,20 +430,24 @@ export function SettingsPage() {
 
             <div className="divide-y divide-zinc-800/60">
               {group.keys.map(def => {
-                const entry   = getConfigEntry(def.key)
-                const isSaving = saving[def.key]
+                const entry     = getConfigEntry(def.key)
+                const isSaving  = saving[def.key]
                 const isTesting = testing[def.key]
-                const result  = results[def.key]
-                const visible  = showValues[def.key]
-                const hasValue = values[def.key] !== undefined
-                const isDirty  = hasValue && values[def.key] !== ''
+                const isClearing = clearing[def.key]
+                const wasSaved  = saved[def.key]
+                const isDirty   = !!values[def.key]
+                const visible   = showValues[def.key]
+                // Mostra lixeira se o valor veio do banco (pode ter sido digitado errado)
+                const hasDbValue = entry?.source === 'db' || entry?.source === 'env+db'
 
                 return (
                   <div key={def.key} className="px-6 py-5">
+                    {/* Cabeçalho da chave */}
                     <div className="flex items-start justify-between gap-4 mb-3">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
+                        <div className="flex items-center flex-wrap gap-2 mb-0.5">
                           <span className="text-white text-sm font-medium font-mono">{def.label}</span>
+
                           {entry && (
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                               entry.configured
@@ -335,18 +457,49 @@ export function SettingsPage() {
                               {entry.configured ? 'Configurado' : 'Não configurado'}
                             </span>
                           )}
+
                           {entry?.source === 'env' && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400">
                               via Render
                             </span>
                           )}
+                          {entry?.source === 'env+db' && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400"
+                                  title="Há um valor no banco que pode estar sobrescrevendo o Render">
+                              env + banco ⚠
+                            </span>
+                          )}
+                          {entry?.source === 'db' && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-400">
+                              via banco
+                            </span>
+                          )}
+
+                          {wasSaved && (
+                            <span className="text-xs flex items-center gap-1 text-emerald-400">
+                              <CheckCircle size={12} /> Salvo!
+                            </span>
+                          )}
                         </div>
                         <p className="text-zinc-500 text-xs">{def.description}</p>
                       </div>
+
+                      {/* Botão limpar banco */}
+                      {hasDbValue && !def.readOnly && (
+                        <button
+                          onClick={() => handleClear(def.key, def.label)}
+                          disabled={isClearing}
+                          title="Limpar valor salvo no banco"
+                          className="text-zinc-600 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10
+                                     transition-colors flex-shrink-0 disabled:opacity-50"
+                        >
+                          {isClearing ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                        </button>
+                      )}
                     </div>
 
+                    {/* Campo */}
                     {def.readOnly ? (
-                      // DATABASE_URL — só mostra status e botão de teste
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-zinc-800/50 border border-zinc-700/50 rounded-lg px-4 py-2.5
                                         text-zinc-500 text-sm font-mono italic">
@@ -359,15 +512,12 @@ export function SettingsPage() {
                             className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium
                                        bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors disabled:opacity-50"
                           >
-                            {isTesting
-                              ? <Loader2 size={13} className="animate-spin" />
-                              : <FlaskConical size={13} />}
+                            {isTesting ? <Loader2 size={13} className="animate-spin" /> : <FlaskConical size={13} />}
                             Testar
                           </button>
                         )}
                       </div>
                     ) : (
-                      // Campo editável
                       <div className="flex items-center gap-2">
                         <div className="flex-1 relative">
                           <input
@@ -395,11 +545,10 @@ export function SettingsPage() {
                             onClick={() => handleTest(def.key)}
                             disabled={isTesting}
                             className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium
-                                       bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors disabled:opacity-50 whitespace-nowrap"
+                                       bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors
+                                       disabled:opacity-50 whitespace-nowrap"
                           >
-                            {isTesting
-                              ? <Loader2 size={13} className="animate-spin" />
-                              : <FlaskConical size={13} />}
+                            {isTesting ? <Loader2 size={13} className="animate-spin" /> : <FlaskConical size={13} />}
                             Testar
                           </button>
                         )}
@@ -411,23 +560,9 @@ export function SettingsPage() {
                                      bg-sky-600 hover:bg-sky-500 text-white transition-colors
                                      disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                         >
-                          {isSaving
-                            ? <Loader2 size={13} className="animate-spin" />
-                            : <Save size={13} />}
+                          {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                           Salvar
                         </button>
-                      </div>
-                    )}
-
-                    {/* Resultado do teste/save */}
-                    {result && (
-                      <div className={`mt-2.5 flex items-center gap-1.5 text-xs ${
-                        result.ok ? 'text-emerald-400' : 'text-red-400'
-                      }`}>
-                        {result.ok
-                          ? <CheckCircle size={13} />
-                          : <XCircle size={13} />}
-                        {result.message}
                       </div>
                     )}
                   </div>
