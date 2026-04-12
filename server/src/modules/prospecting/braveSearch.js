@@ -1,7 +1,7 @@
 /**
  * Brave Web Search API — fallback gratuito ao Serper.
  *
- * Plano gratuito: 2.000 buscas/mês, sem cartão de crédito.
+ * Plano: pago — não possui plano gratuito.
  * Cadastro: api.search.brave.com
  * Configuração: BRAVE_SEARCH_KEY no .env
  *

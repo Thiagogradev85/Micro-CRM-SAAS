@@ -74,7 +74,7 @@ const GROUPS = [
       {
         key: 'BRAVE_SEARCH_KEY',
         label: 'Brave Search Key',
-        description: 'API de busca da Brave. search.brave.com/api',
+        description: 'API de busca da Brave (pago). search.brave.com/api',
         placeholder: 'BSAxxxxxxxxxxxxxxxxx',
         testable: true,
       },
@@ -393,7 +393,7 @@ export function SettingsPage() {
       ],
       BRAVE_SEARCH_KEY: [
         'Acesse api.search.brave.com → crie uma conta → gere uma API Key.',
-        'O plano gratuito inclui 2.000 buscas/mês.',
+        'Atenção: Brave Search não possui plano gratuito.',
       ],
       BING_SEARCH_KEY: [
         'Acesse portal.azure.com → crie o recurso "Bing Search v7".',
