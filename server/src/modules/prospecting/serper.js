@@ -114,7 +114,7 @@ async function _searchWebSerper(query) {
 //
 // Ordem de prioridade quando o Serper atinge o limite:
 //   1. SerpApi      — gratuito, 100 buscas/mês        (SERPAPI_KEY)
-//   2. Brave Search — pago, sem plano gratuito         (BRAVE_SEARCH_KEY)
+//   2. Brave Search — $5 crédito grátis/mês (~1.000 buscas) (BRAVE_SEARCH_KEY)
 //   3. Bing Search  — gratuito/pago, 1.000 buscas/mês (BING_SEARCH_KEY)
 //   4. Google CSE   — gratuito/pago, 100 buscas/dia   (GOOGLE_CSE_KEY + GOOGLE_CSE_CX)
 //
