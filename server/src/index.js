@@ -83,7 +83,7 @@ app.use('/daily-report', dailyReportRoutes)
 app.use('/whatsapp',     whatsappRoutes)
 app.use('/email',        emailRoutes)
 app.use('/prospecting',  prospectingRoutes)
-app.use('/api/settings', settingsRoutes)
+app.use('/settings',     settingsRoutes)
 
 // ── Health check ───────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date() }))

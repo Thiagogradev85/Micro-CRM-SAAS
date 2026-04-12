@@ -177,8 +177,8 @@ export const api = {
   deleteReportEvent: (id) => request('DELETE', `/daily-report/events/${id}`),
 
   // Settings
-  settingsAuth:   (password)         => request('POST', '/api/settings/auth', { password }),
-  getSettings:    ()                 => request('GET',  '/api/settings'),
-  saveSettings:   (password, values) => request('POST', '/api/settings', { password, values }),
-  testSetting:    (password, key)    => request('POST', '/api/settings/test', { password, key }),
+  settingsAuth:   (password)         => request('POST', '/settings/auth', { password }),
+  getSettings:    ()                 => request('GET',  '/settings'),
+  saveSettings:   (password, values) => request('POST', '/settings', { password, values }),
+  testSetting:    (password, key)    => request('POST', '/settings/test', { password, key }),
 }
