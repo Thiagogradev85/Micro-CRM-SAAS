@@ -312,7 +312,6 @@ export function SettingsPage() {
       setRevealedValues(v => { const n = { ...v }; delete n[key]; return n })
       return
     }
-    setRevealPwd('')
     setRevealPwdError('')
     setRevealPrompt({ key, label })
   }
