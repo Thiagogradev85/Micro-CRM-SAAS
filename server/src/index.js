@@ -16,8 +16,10 @@ import dailyReportRoutes from './routes/dailyReport.js'
 import whatsappRoutes    from './routes/whatsapp.js'
 import emailRoutes       from './routes/email.js'
 import prospectingRoutes from './routes/prospecting.js'
+import settingsRoutes    from './routes/settings.js'
 import { AppError }      from './utils/AppError.js'
 import db                from './db/db.js'
+import { loadConfigFromDb } from './config/configService.js'
 
 dotenv.config()
 
@@ -81,6 +83,7 @@ app.use('/daily-report', dailyReportRoutes)
 app.use('/whatsapp',     whatsappRoutes)
 app.use('/email',        emailRoutes)
 app.use('/prospecting',  prospectingRoutes)
+app.use('/api/settings', settingsRoutes)
 
 // ── Health check ───────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date() }))
@@ -103,8 +106,10 @@ app.use((err, req, res, _next) => {
   res.status(500).json({ error: isDev ? (err.message || String(err)) : 'Erro interno do servidor. Verifique os logs.' })
 })
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Servidor rodando em http://localhost:${PORT}`)
+  // Carrega chaves de API salvas no banco (via página de configurações)
+  await loadConfigFromDb()
   // Reseta clientes contatados em dias anteriores caso o servidor estivesse offline à meia-noite
   resetContatadoParaProspeccao({ apenasAnteriores: true })
   agendarResetMeiaNoite()

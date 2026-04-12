@@ -175,4 +175,10 @@ export const api = {
     window.open(url, '_blank')
   },
   deleteReportEvent: (id) => request('DELETE', `/daily-report/events/${id}`),
+
+  // Settings
+  settingsAuth:   (password)         => request('POST', '/api/settings/auth', { password }),
+  getSettings:    ()                 => request('GET',  '/api/settings'),
+  saveSettings:   (password, values) => request('POST', '/api/settings', { password, values }),
+  testSetting:    (password, key)    => request('POST', '/api/settings/test', { password, key }),
 }

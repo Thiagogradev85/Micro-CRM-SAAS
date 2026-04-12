@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-  Users, BookOpen, BarChart2, UserCheck, X, Menu, Package, MessageCircle, Mail, Telescope, Sparkles
+  Users, BookOpen, BarChart2, UserCheck, X, Menu, Package, MessageCircle, Mail, Telescope, Sparkles, Settings
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -70,6 +70,23 @@ export function Sidebar() {
             </NavLink>
           ))}
         </nav>
+
+        <div className="px-2 mb-2">
+          <NavLink
+            to="/settings"
+            onClick={() => setOpen(false)}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+              ${isActive
+                ? 'bg-sky-600/20 text-sky-400 border border-sky-600/30'
+                : 'text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
+              }`
+            }
+          >
+            <Settings size={17} />
+            Configurações
+          </NavLink>
+        </div>
 
         <div className="px-4 pb-2 space-y-0.5">
           <div className="text-xs text-zinc-600">v1.7.0</div>
