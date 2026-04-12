@@ -19,6 +19,7 @@ export const MANAGED_KEYS = [
   'BRAVE_SEARCH_KEY',
   'BING_SEARCH_KEY',
   'ENRICH_SEGMENT',
+  'SETTINGS_PASSWORD',
 ]
 
 /**

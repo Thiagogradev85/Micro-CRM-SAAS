@@ -54,7 +54,7 @@ export async function saveSettings(req, res, next) {
     if (!values || typeof values !== 'object') throw new AppError('Payload inválido.', 400)
 
     for (const [key, value] of Object.entries(values)) {
-      if (!MANAGED_KEYS.includes(key) && key !== 'SETTINGS_PASSWORD') continue
+      if (!MANAGED_KEYS.includes(key)) continue
       await setConfig(key, value)
     }
 
