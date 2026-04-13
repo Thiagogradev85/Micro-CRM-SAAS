@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Micro CRM — CRM inteligente para pequenas empresas</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:   #2563eb;
+      --blue-d: #1d4ed8;
+      --blue-l: #eff6ff;
+      --green:  #16a34a;
+      --green-l:#f0fdf4;
+      --orange: #ea580c;
+      --gray-1: #111827;
+      --gray-2: #374151;
+      --gray-3: #6b7280;
+      --gray-4: #d1d5db;
+      --gray-5: #f9fafb;
+    }
+
+    body { font-family: 'Inter', sans-serif; color: var(--gray-1); background: #fff; font-size: 15px; line-height: 1.6; }
+
+    /* HERO */
+    .hero {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #0f172a 100%);
+      color: #fff; padding: 80px 48px 72px; text-align: center; position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 60% 40%, rgba(37,99,235,.35) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .badge {
+      display: inline-block; background: rgba(37,99,235,.25); border: 1px solid rgba(37,99,235,.5);
+      color: #93c5fd; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+      padding: 4px 14px; border-radius: 99px; margin-bottom: 24px;
+    }
+    .hero h1 { font-size: clamp(30px, 5vw, 50px); font-weight: 900; line-height: 1.15; margin-bottom: 20px; max-width: 760px; margin-left: auto; margin-right: auto; }
+    .hero h1 span { color: #60a5fa; }
+    .hero p { font-size: 17px; color: #94a3b8; max-width: 540px; margin: 0 auto 40px; }
+    .hero-cta {
+      display: inline-flex; align-items: center; gap: 10px; background: var(--blue);
+      color: #fff; font-weight: 700; font-size: 16px; padding: 14px 32px; border-radius: 10px; text-decoration: none;
+    }
+    .hero-note { margin-top: 16px; font-size: 13px; color: #475569; }
+
+    /* FOUNDER BANNER */
+    .founder-banner {
+      background: #fefce8; border-top: 3px solid #fbbf24; border-bottom: 3px solid #fbbf24;
+      padding: 18px 48px; text-align: center;
+    }
+    .founder-banner p { font-size: 14px; color: #92400e; }
+    .founder-banner strong { font-weight: 700; }
+
+    /* SECTION */
+    section { padding: 72px 48px; max-width: 1060px; margin: 0 auto; }
+    h2 { font-size: clamp(22px, 3vw, 34px); font-weight: 800; line-height: 1.2; margin-bottom: 12px; }
+    .section-sub { font-size: 16px; color: var(--gray-3); margin-bottom: 48px; max-width: 560px; }
+    .divider { width: 48px; height: 4px; background: var(--blue); border-radius: 2px; margin: 0 0 40px; }
+    .divider.center { margin: 0 auto 40px; }
+    .text-center { text-align: center; }
+
+    /* PROBLEMAS */
+    .problems { background: #fff8f5; }
+    .problems-inner { max-width: 1060px; margin: 0 auto; padding: 72px 48px; }
+    .pain-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
+    .pain-card {
+      background: #fff; border: 1px solid #fcd9b9; border-left: 4px solid var(--orange);
+      border-radius: 10px; padding: 20px;
+    }
+    .pain-card .icon { font-size: 22px; margin-bottom: 10px; }
+    .pain-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .pain-card p { font-size: 13px; color: var(--gray-3); }
+
+    /* FEATURES */
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+    .feature-card {
+      border: 1px solid var(--gray-4); border-radius: 12px; padding: 24px;
+      transition: box-shadow .15s, border-color .15s;
+    }
+    .feature-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.08); border-color: var(--blue); }
+    .feature-icon {
+      width: 42px; height: 42px; background: var(--blue-l); border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; font-size: 19px; margin-bottom: 14px;
+    }
+    .feature-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .feature-card p { font-size: 13px; color: var(--gray-3); line-height: 1.55; }
+    .feature-tag {
+      display: inline-block; margin-top: 10px; font-size: 11px; font-weight: 700;
+      color: var(--blue); background: var(--blue-l); padding: 3px 10px; border-radius: 99px; letter-spacing: .04em;
+    }
+    .feature-tag.green { color: var(--green); background: var(--green-l); }
+    .feature-tag.gray { color: var(--gray-3); background: var(--gray-5); }
+
+    /* STEPS */
+    .steps { background: var(--gray-5); }
+    .steps-inner { max-width: 1060px; margin: 0 auto; padding: 72px 48px; }
+    .steps-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 32px; }
+    .step-num {
+      width: 38px; height: 38px; background: var(--blue); color: #fff; font-weight: 800; font-size: 15px;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
+    }
+    .step h3 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .step p { font-size: 13px; color: var(--gray-3); }
+
+    /* PRECOS */
+    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; align-items: start; }
+    .plan { border: 2px solid var(--gray-4); border-radius: 16px; padding: 32px 28px; position: relative; }
+    .plan.featured { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(37,99,235,.08); }
+    .plan-badge {
+      position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+      background: var(--blue); color: #fff; font-size: 11px; font-weight: 700;
+      letter-spacing: .06em; text-transform: uppercase; padding: 3px 14px; border-radius: 99px; white-space: nowrap;
+    }
+    .plan-name { font-size: 13px; font-weight: 700; color: var(--gray-3); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+    .plan-price { font-size: 42px; font-weight: 900; color: var(--gray-1); line-height: 1; }
+    .plan-price sup { font-size: 18px; font-weight: 700; vertical-align: super; }
+    .plan-price sub { font-size: 13px; font-weight: 500; color: var(--gray-3); }
+    .plan-desc { font-size: 13px; color: var(--gray-3); margin: 10px 0 22px; }
+    .plan-features { list-style: none; margin-bottom: 24px; }
+    .plan-features li {
+      font-size: 13px; padding: 7px 0; border-bottom: 1px solid var(--gray-5);
+      display: flex; gap: 10px; align-items: flex-start;
+    }
+    .plan-features li::before { content: '\2713'; color: var(--green); font-weight: 700; flex-shrink: 0; }
+    .plan-features li.no::before { content: '\2715'; color: var(--gray-4); }
+    .plan-features li.no { color: var(--gray-4); }
+    .btn { display: block; text-align: center; padding: 12px; border-radius: 9px; font-weight: 700; font-size: 15px; text-decoration: none; }
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-primary:hover { background: var(--blue-d); }
+    .btn-outline { border: 2px solid var(--gray-4); color: var(--gray-2); }
+    .btn-outline:hover { border-color: var(--blue); color: var(--blue); }
+    .plan-note { margin-top: 10px; font-size: 12px; color: var(--gray-3); text-align: center; }
+
+    .pricing-faq { margin-top: 48px; background: var(--gray-5); border-radius: 12px; padding: 28px 32px; }
+    .pricing-faq h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+    .faq-item { margin-bottom: 14px; }
+    .faq-item strong { font-size: 14px; display: block; margin-bottom: 4px; }
+    .faq-item p { font-size: 13px; color: var(--gray-3); }
+
+    /* EARLY ADOPTER */
+    .early {
+      background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+      border: 1px solid #bbf7d0; border-radius: 16px; padding: 40px 48px;
+      display: flex; gap: 28px; align-items: flex-start; max-width: 800px; margin: 0 auto;
+    }
+    .early-icon { font-size: 44px; flex-shrink: 0; }
+    .early h3 { font-size: 20px; font-weight: 800; color: var(--green); margin-bottom: 10px; }
+    .early p { font-size: 14px; color: #166534; margin-bottom: 8px; }
+    .early ul { padding-left: 18px; }
+    .early ul li { font-size: 14px; color: #166534; margin-bottom: 4px; }
+
+    /* CTA FINAL */
+    .cta-section { background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); color: #fff; text-align: center; padding: 72px 48px; }
+    .cta-section h2 { color: #fff; font-size: clamp(22px, 3vw, 34px); margin-bottom: 12px; }
+    .cta-section p { color: #94a3b8; font-size: 16px; margin-bottom: 36px; }
+    .cta-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+    .btn-white { background: #fff; color: var(--blue); font-weight: 700; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-size: 15px; }
+    .btn-ghost { border: 2px solid rgba(255,255,255,.3); color: #fff; font-weight: 600; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-size: 15px; }
+
+    footer { background: #0f172a; color: #475569; text-align: center; padding: 28px 48px; font-size: 13px; }
+    footer strong { color: #94a3b8; }
+
+    @media (max-width: 640px) {
+      .hero, section, .steps-inner, .problems-inner { padding: 48px 24px; }
+      .cta-section { padding: 48px 24px; }
+      .early { flex-direction: column; padding: 28px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="badge">Projeto em fase de lancamento</div>
+  <h1>CRM feito para quem <span>prospecta e vende</span> todos os dias</h1>
+  <p>Organize seus leads, dispare WhatsApp e e-mail em massa, prospecte no Google Maps e acompanhe seu funil de vendas — num unico sistema.</p>
+  <a href="#precos" class="hero-cta">Ver planos &rarr;</a>
+  <p class="hero-note">Preco de lancamento por tempo limitado &middot; Sem fidelidade</p>
+</section>
+
+<!-- BANNER FOUNDERS -->
+<div class="founder-banner">
+  <p><strong>Produto em fase inicial:</strong> Voce estara entre os primeiros usuarios. Isso significa preco de fundador, suporte direto com o desenvolvedor e influencia real nas proximas funcionalidades.</p>
+</div>
+
+<!-- PROBLEMAS -->
+<div class="problems">
+  <div class="problems-inner">
+    <div class="text-center">
+      <h2>Sua rotina de vendas parece com isso?</h2>
+      <p class="section-sub" style="margin:12px auto 48px">Problemas comuns de quem gerencia leads sem um sistema.</p>
+    </div>
+    <div class="pain-grid">
+      <div class="pain-card">
+        <div class="icon">&#128203;</div>
+        <h3>Leads espalhados no Excel</h3>
+        <p>Planilhas desatualizadas, dados duplicados e nenhuma visao clara do funil.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">&#9200;</div>
+        <h3>Prospeccao manual e lenta</h3>
+        <p>Horas pesquisando empresas no Google quando poderia estar fechando vendas.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">&#128241;</div>
+        <h3>WhatsApp um a um</h3>
+        <p>Copiar e colar a mesma mensagem para dezenas de contatos e perda de tempo.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">&#128202;</div>
+        <h3>Sem visao do dia</h3>
+        <p>Fim do dia sem saber quantos leads foram contatados ou quantas propostas sairam.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">&#128193;</div>
+        <h3>Catalogo descontrolado</h3>
+        <p>Nao saber qual versao do catalogo foi enviada para qual cliente.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">&#128176;</div>
+        <h3>CRMs caros demais</h3>
+        <p>As ferramentas conhecidas custam R$ 500-2.000/mes. Inviavel para pequenas operacoes.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section>
+  <div class="divider"></div>
+  <h2>O que o sistema faz hoje</h2>
+  <p class="section-sub">Funcionalidades ja implementadas e em uso.</p>
+  <div class="features-grid">
+
+    <div class="feature-card">
+      <div class="feature-icon">&#128506;</div>
+      <h3>Prospeccao via Google Maps</h3>
+      <p>Busca empresas por cidade e segmento usando multiplas APIs (Serper, Brave, Bing, Google CSE) e importa direto para o CRM.</p>
+      <span class="feature-tag">Disponivel</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#128172;</div>
+      <h3>WhatsApp em Massa</h3>
+      <p>Envia mensagens personalizadas para a carteira com delay configuravel. Marca quem foi contatado automaticamente.</p>
+      <span class="feature-tag">Disponivel</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#129302;</div>
+      <h3>Enriquecimento com IA</h3>
+      <p>Clientes sem telefone ou Instagram? A IA (Claude) busca e preenche os dados que faltam.</p>
+      <span class="feature-tag green">IA</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#128140;</div>
+      <h3>E-mail em Massa</h3>
+      <p>Templates com variaveis personalizadas e anexo de catalogo PDF para envio em lote.</p>
+      <span class="feature-tag">Disponivel</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#128193;</div>
+      <h3>Catalogos de Produtos</h3>
+      <p>Geracao de PDF de catalogo e importacao de produtos via PDF com IA. Controle de qual catalogo foi enviado a cada cliente.</p>
+      <span class="feature-tag green">IA</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#128202;</div>
+      <h3>Relatorio Diario Automatico</h3>
+      <p>Resumo automatico ao final do dia: novos clientes, contatados, catalogos enviados e vendas fechadas.</p>
+      <span class="feature-tag">Disponivel</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#128228;</div>
+      <h3>Importacao e Exportacao Excel</h3>
+      <p>Importe listas existentes via planilha. Exporte toda a carteira formatada em Excel ou PDF com um clique.</p>
+      <span class="feature-tag">Disponivel</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#128274;</div>
+      <h3>Multi-usuario Isolado</h3>
+      <p>Cada empresa tem login proprio e dados completamente separados. O administrador gerencia as contas pelo painel.</p>
+      <span class="feature-tag">Disponivel</span>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">&#9881;</div>
+      <h3>Chaves de API via Painel</h3>
+      <p>Configure suas chaves de API (Claude, Serper, etc.) diretamente pela interface, sem precisar mexer em codigo.</p>
+      <span class="feature-tag gray">Configuravel</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- COMO FUNCIONA -->
+<div class="steps">
+  <div class="steps-inner">
+    <div class="text-center">
+      <h2>Como funciona na pratica</h2>
+      <p class="section-sub" style="margin:12px auto 40px">Do cadastro ao disparo em poucos minutos.</p>
+    </div>
+    <div class="steps-list">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Receba seu acesso</h3>
+        <p>O administrador cria sua conta. Voce recebe e-mail e senha e ja entra pelo navegador.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Importe ou prospecte</h3>
+        <p>Suba uma planilha Excel existente ou use a prospeccao para buscar novos contatos no Google Maps.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Enriqueca os dados</h3>
+        <p>Clientes sem telefone? Um clique e a IA preenche o que falta automaticamente.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h3>Dispare em massa</h3>
+        <p>Filtre os leads por estado ou status, personalize a mensagem e envie via WhatsApp ou e-mail.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <h3>Acompanhe o funil</h3>
+        <p>Mova os cards no Kanban conforme avanca com cada cliente. O relatorio diario resume tudo.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PRECOS -->
+<section id="precos">
+  <div class="divider center"></div>
+  <div class="text-center">
+    <h2>Precos de lancamento</h2>
+    <p class="section-sub" style="margin:12px auto 48px">Valores validos para os primeiros usuarios. Sem taxa de setup. Sem fidelidade.</p>
+  </div>
+
+  <div class="pricing-grid">
+
+    <div class="plan">
+      <div class="plan-name">Solo</div>
+      <div class="plan-price"><sup>R$</sup>97<sub>/mes</sub></div>
+      <p class="plan-desc">Para autonomos e representantes individuais.</p>
+      <ul class="plan-features">
+        <li>1 usuario</li>
+        <li>Gestao de clientes com funil de status</li>
+        <li>Prospeccao via Google Maps</li>
+        <li>WhatsApp em massa</li>
+        <li>Exportacao Excel e PDF</li>
+        <li>Relatorio diario</li>
+        <li class="no">E-mail em massa</li>
+        <li class="no">Enriquecimento com IA</li>
+        <li class="no">Catalogos de produtos</li>
+      </ul>
+      <a href="#contato" class="btn btn-outline">Quero comecar</a>
+      <p class="plan-note">Primeiros 7 dias gratis</p>
+    </div>
+
+    <div class="plan featured">
+      <div class="plan-badge">Mais completo</div>
+      <div class="plan-name">Profissional</div>
+      <div class="plan-price"><sup>R$</sup>197<sub>/mes</sub></div>
+      <p class="plan-desc">Para quem quer o sistema completo com IA e catalogos.</p>
+      <ul class="plan-features">
+        <li>Ate 3 usuarios</li>
+        <li>Tudo do Solo</li>
+        <li>E-mail em massa com anexo PDF</li>
+        <li>Enriquecimento com IA</li>
+        <li>Catalogos de produtos PDF</li>
+        <li>Importacao de catalogo via IA</li>
+        <li>Importacao em massa (Excel)</li>
+        <li>Suporte direto com o desenvolvedor</li>
+      </ul>
+      <a href="#contato" class="btn btn-primary">Quero comecar</a>
+      <p class="plan-note">Primeiros 7 dias gratis &middot; Sem cartao</p>
+    </div>
+
+    <div class="plan">
+      <div class="plan-name">Equipe</div>
+      <div class="plan-price"><sup>R$</sup>297<sub>/mes</sub></div>
+      <p class="plan-desc">Para times com multiplos vendedores e carteira grande.</p>
+      <ul class="plan-features">
+        <li>Usuarios ilimitados</li>
+        <li>Tudo do Profissional</li>
+        <li>Onboarding via chamada de video</li>
+        <li>Influencia direta no roadmap</li>
+        <li>Suporte prioritario via WhatsApp</li>
+      </ul>
+      <a href="#contato" class="btn btn-outline">Falar com o desenvolvedor</a>
+      <p class="plan-note">Primeiros 7 dias gratis</p>
+    </div>
+
+  </div>
+
+  <div class="pricing-faq">
+    <h3>Duvidas frequentes</h3>
+    <div class="faq-item">
+      <strong>O sistema ja esta funcionando?</strong>
+      <p>Sim. Esta hospedado, em producao e sendo usado. E um projeto em lancamento — maduro o suficiente para uso real, ainda evoluindo.</p>
+    </div>
+    <div class="faq-item">
+      <strong>Posso cancelar quando quiser?</strong>
+      <p>Sim. Sem fidelidade, sem multa. Cancele a qualquer momento pelo contato direto com o desenvolvedor.</p>
+    </div>
+    <div class="faq-item">
+      <strong>O que acontece com meus dados se eu sair?</strong>
+      <p>Voce pode exportar toda a sua carteira em Excel antes de cancelar. Os dados ficam disponiveis por 30 dias apos o cancelamento.</p>
+    </div>
+    <div class="faq-item">
+      <strong>Preciso saber usar computador avancado?</strong>
+      <p>Nao. O sistema roda no navegador, sem instalacao. Se voce usa WhatsApp Web, voce consegue usar o Micro CRM.</p>
+    </div>
+  </div>
+</section>
+
+<!-- EARLY ADOPTER -->
+<section class="text-center">
+  <div class="early">
+    <div class="early-icon">&#128640;</div>
+    <div>
+      <h3>Vantagem de entrar agora</h3>
+      <p>Por ser um produto em lancamento, os primeiros usuarios tem beneficios que nao serao oferecidos depois:</p>
+      <ul>
+        <li>Preco de fundador — menor que o preco final</li>
+        <li>Suporte direto com o desenvolvedor via WhatsApp</li>
+        <li>Suas sugestoes entram no roadmap de desenvolvimento</li>
+        <li>Preco travado enquanto voce for assinante</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<div class="cta-section">
+  <h2>Pronto para organizar sua prospeccao?</h2>
+  <p>Entre em contato e ganhe 7 dias gratis para testar sem compromisso.</p>
+  <div class="cta-buttons">
+    <a href="https://wa.me/5511997870363" class="btn-white">Falar no WhatsApp &rarr;</a>
+    <a href="mailto:thiagogradev@gmail.com" class="btn-ghost">Enviar e-mail</a>
+  </div>
+  <p style="margin-top:20px; font-size:13px; color:#475569;">Sem cartao de credito &middot; 7 dias gratis &middot; Cancele quando quiser</p>
+</div>
+
+<footer>
+  <p><strong>Micro CRM</strong> &mdash; Desenvolvido por Thiago Gramuglia &middot; CNPJ 64.828.611/0001-05</p>
+</footer>
+
+</body>
+</html>
