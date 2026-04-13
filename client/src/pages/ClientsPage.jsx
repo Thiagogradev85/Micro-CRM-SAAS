@@ -452,7 +452,6 @@ export function ClientsPage() {
       await api.updateClient(client.id, { status_id: statuses.find(s => s.nome === 'Contatado')?.id })
       broadcastClient('client_updated', client.id)
       setContactedToday(prev => new Set([...prev, client.id]))
-      showModal({ type: 'success', title: 'Status atualizado', message: `${client.nome} marcado como Contatado!` })
       load()
     } catch (err) {
       showModal({ type: 'error', title: 'Erro', message: err.message })
