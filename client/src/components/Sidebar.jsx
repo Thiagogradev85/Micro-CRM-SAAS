@@ -131,7 +131,7 @@ export function Sidebar() {
         )}
 
         <div className="px-4 pb-2 space-y-0.5">
-          <div className="text-xs text-zinc-600">v2.0.0</div>
+          <div className="text-xs text-zinc-600">v2.1.0</div>
           <div className="text-xs text-zinc-700 leading-tight truncate">Desenvolvido por Thiago Gramuglia</div>
           <div className="text-xs text-zinc-700 truncate">CNPJ 64.828.611/0001-05</div>
         </div>
