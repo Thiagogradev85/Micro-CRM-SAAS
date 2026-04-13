@@ -1,6 +1,7 @@
 import { verifyToken } from '../utils/auth.js'
 
-// userId → { nome, role, socketId }
+// userId (string) → { nome, role }
+// socketId não é armazenado — usamos rooms do socket.io para broadcasts
 const onlineUsers = new Map()
 
 function parseCookies(cookieHeader = '') {
@@ -15,16 +16,8 @@ function parseCookies(cookieHeader = '') {
   )
 }
 
-function broadcastToAdmins(io, event, data) {
-  for (const [, info] of onlineUsers) {
-    if (info.role === 'admin') {
-      io.to(info.socketId).emit(event, data)
-    }
-  }
-}
-
 export function setupPresence(io) {
-  // ── Auth middleware para sockets ──────────────────────
+  // ── Auth middleware ───────────────────────────────────
   io.use((socket, next) => {
     try {
       const cookies = parseCookies(socket.handshake.headers.cookie)
@@ -39,26 +32,33 @@ export function setupPresence(io) {
 
   io.on('connection', (socket) => {
     const { id: userId, nome, role } = socket.user
+    const uid = String(userId)
+
+    // Admin entra na room "admins" — usada para broadcasts diretos
+    if (role === 'admin') {
+      socket.join('admins')
+    }
 
     // Registra como online
-    onlineUsers.set(String(userId), { nome, role, socketId: socket.id })
+    onlineUsers.set(uid, { nome, role })
+    console.log(`[Presence] ${nome} (${role}) conectou. Online: ${onlineUsers.size}`)
 
-    // Admin recebe lista atual de online ao conectar
+    // Admin recebe lista atual ao conectar
     if (role === 'admin') {
       socket.emit('online-users', [...onlineUsers.keys()])
     }
 
-    // Notifica admins quando usuário (não-admin) entra
+    // Notifica todos os admins quando usuário (não-admin) entra
     if (role !== 'admin') {
-      broadcastToAdmins(io, 'user-online', { userId: String(userId), nome })
+      io.to('admins').emit('user-online', { userId: uid, nome })
     }
 
-    socket.on('disconnect', () => {
-      onlineUsers.delete(String(userId))
+    socket.on('disconnect', (reason) => {
+      onlineUsers.delete(uid)
+      console.log(`[Presence] ${nome} desconectou (${reason}). Online: ${onlineUsers.size}`)
 
-      // Notifica admins quando usuário sai
       if (role !== 'admin') {
-        broadcastToAdmins(io, 'user-offline', { userId: String(userId) })
+        io.to('admins').emit('user-offline', { userId: uid })
       }
     })
   })

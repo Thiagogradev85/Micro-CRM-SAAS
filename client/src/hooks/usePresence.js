@@ -55,6 +55,13 @@ export function usePresence(user) {
     })
     socketRef.current = socket
 
+    socket.on('connect', () => {
+      console.log('[Presence] socket conectado:', socket.id)
+    })
+    socket.on('connect_error', (err) => {
+      console.warn('[Presence] erro de conexão:', err.message)
+    })
+
     // Admin recebe lista inicial de quem já está online
     socket.on('online-users', (ids) => {
       setOnlineUserIds(ids.map(String))
