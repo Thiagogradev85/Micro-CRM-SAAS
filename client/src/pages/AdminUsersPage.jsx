@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { UserPlus, Trash2, ShieldCheck, User, ToggleLeft, ToggleRight, Loader2, KeyRound } from 'lucide-react'
+import { UserPlus, Trash2, ShieldCheck, User, ToggleLeft, ToggleRight, Loader2, KeyRound, Bell, BellOff } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useModal } from '../hooks/useModal.js'
@@ -8,7 +8,7 @@ import { useModal } from '../hooks/useModal.js'
 const EMPTY_FORM = { nome: '', email: '', password: '', role: 'user' }
 
 export function AdminUsersPage() {
-  const { user: me, onlineUserIds } = useAuth()
+  const { user: me, onlineUserIds, mutedUsers, toggleMute } = useAuth()
   const navigate          = useNavigate()
   const { modal, showModal } = useModal()
 
@@ -211,6 +211,23 @@ export function AdminUsersPage() {
                 <p className="text-xs text-zinc-500 truncate">{user.email}</p>
               </div>
               <div className="flex items-center gap-1">
+                {/* Silenciar notificação de presença — só para usuários não-admin */}
+                {user.role !== 'admin' && (
+                  <button
+                    onClick={() => toggleMute(user.id)}
+                    title={mutedUsers.has(String(user.id)) ? 'Notificações silenciadas — clique para ativar' : 'Silenciar notificação de entrada'}
+                    className={`rounded p-1.5 transition hover:bg-zinc-800 ${
+                      mutedUsers.has(String(user.id))
+                        ? 'text-zinc-600 hover:text-zinc-400'
+                        : 'text-zinc-500 hover:text-yellow-400'
+                    }`}
+                  >
+                    {mutedUsers.has(String(user.id))
+                      ? <BellOff size={14} />
+                      : <Bell size={14} />
+                    }
+                  </button>
+                )}
                 <button
                   onClick={() => toggleAtivo(user)}
                   disabled={user.id === me?.id}

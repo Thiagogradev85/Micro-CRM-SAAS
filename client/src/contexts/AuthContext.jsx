@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { api } from '../utils/api.js'
 import { usePresence } from '../hooks/usePresence.js'
-import { Toast } from '../components/Toast.jsx'
+import { PresenceNotification } from '../components/PresenceNotification.jsx'
 
 const AuthContext = createContext(null)
 
@@ -28,17 +28,16 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
-  const { onlineUserIds, presenceToast, clearToast } = usePresence(user)
+  const { onlineUserIds, presenceToast, clearToast, mutedUsers, toggleMute } = usePresence(user)
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, onlineUserIds }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, onlineUserIds, mutedUsers, toggleMute }}>
       {children}
 
-      {/* Toast de presença — aparece só para admin quando outro usuário entra */}
-      {presenceToast && (
-        <Toast
-          message={`${presenceToast.nome} está online`}
-          type="success"
+      {/* Notificação de presença — só admin vê, só se não estiver mutado */}
+      {presenceToast && user?.role === 'admin' && (
+        <PresenceNotification
+          nome={presenceToast.nome}
           onClose={clearToast}
         />
       )}
