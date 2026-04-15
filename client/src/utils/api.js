@@ -195,6 +195,13 @@ export const api = {
   updateUser:  (id, data) => request('PUT',    `/auth/users/${id}`, data),
   deleteUser:  (id)       => request('DELETE', `/auth/users/${id}`),
 
+  // Admin — gestão de empresas
+  listCompanies:        ()         => request('GET',    '/companies'),
+  createCompany:        (data)     => request('POST',   '/companies', data),
+  updateCompany:        (id, data) => request('PUT',    `/companies/${id}`, data),
+  deleteCompany:        (id)       => request('DELETE', `/companies/${id}`),
+  listCompanyUsers:     (id)       => request('GET',    `/companies/${id}/users`),
+
   // Settings
   settingsAuth:   (password)         => request('POST', '/settings/auth', { password }),
   getSettings:    ()                 => request('GET',  '/settings'),

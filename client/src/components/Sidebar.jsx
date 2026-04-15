@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-  Users, BookOpen, BarChart2, UserCheck, X, Menu, Package, MessageCircle, Mail, Telescope, Sparkles, Settings, LogOut, Shield, UserCog
+  Users, BookOpen, BarChart2, UserCheck, X, Menu, Package, MessageCircle, Mail, Telescope, Sparkles, Settings, LogOut, Shield, UserCog, Building2
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext.jsx'
@@ -94,6 +94,22 @@ export function Sidebar() {
             >
               <UserCog size={17} />
               Usuários
+            </NavLink>
+          )}
+          {user?.role === 'admin' && (
+            <NavLink
+              to="/admin/companies"
+              onClick={() => setOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                ${isActive
+                  ? 'bg-sky-600/20 text-sky-400 border border-sky-600/30'
+                  : 'text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
+                }`
+              }
+            >
+              <Building2 size={17} />
+              Empresas
             </NavLink>
           )}
           <NavLink

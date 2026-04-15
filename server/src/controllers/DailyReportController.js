@@ -5,7 +5,7 @@ export const DailyReportController = {
   async getSummary(req, res, next) {
     try {
       const date = req.query.date || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
-      const summary = await DailyReportModel.getSummary(date, req.user.id)
+      const summary = await DailyReportModel.getSummary(date, req.user.company_id)
       res.json({ date, summary })
     } catch (err) {
       next(err)
@@ -15,8 +15,8 @@ export const DailyReportController = {
   async getDetails(req, res, next) {
     try {
       const date = req.query.date || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
-      const details = await DailyReportModel.getDetails(date, req.user.id)
-      const summary = await DailyReportModel.getSummary(date, req.user.id)
+      const details = await DailyReportModel.getDetails(date, req.user.company_id)
+      const summary = await DailyReportModel.getSummary(date, req.user.company_id)
       res.json({ date, summary, details })
     } catch (err) {
       next(err)
@@ -25,7 +25,7 @@ export const DailyReportController = {
 
   async listDates(req, res, next) {
     try {
-      const dates = await DailyReportModel.listDatesWithEvents(req.user.id)
+      const dates = await DailyReportModel.listDatesWithEvents(req.user.company_id)
       res.json(dates)
     } catch (err) {
       next(err)
@@ -45,8 +45,8 @@ export const DailyReportController = {
   async downloadPdf(req, res, next) {
     try {
       const date = req.query.date || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
-      const details = await DailyReportModel.getDetails(date, req.user.id)
-      const summary = await DailyReportModel.getSummary(date, req.user.id)
+      const details = await DailyReportModel.getDetails(date, req.user.company_id)
+      const summary = await DailyReportModel.getSummary(date, req.user.company_id)
 
       const pdfBuffer = await generateReportPdf({ date, summary, details })
 

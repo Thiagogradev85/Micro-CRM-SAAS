@@ -1,7 +1,7 @@
 import db from '../db/db.js'
 
 export const SellerModel = {
-  async list(userId) {
+  async list(companyId) {
     const { rows } = await db.query(`
       SELECT s.*,
              COALESCE(
@@ -10,14 +10,14 @@ export const SellerModel = {
              ) AS ufs
       FROM sellers s
       LEFT JOIN seller_ufs su ON su.seller_id = s.id
-      WHERE s.user_id = $1
+      WHERE s.company_id = $1
       GROUP BY s.id
       ORDER BY s.nome ASC
-    `, [userId])
+    `, [companyId])
     return rows
   },
 
-  async get(id, userId) {
+  async get(id, companyId) {
     const { rows } = await db.query(`
       SELECT s.*,
              COALESCE(
@@ -26,30 +26,30 @@ export const SellerModel = {
              ) AS ufs
       FROM sellers s
       LEFT JOIN seller_ufs su ON su.seller_id = s.id
-      WHERE s.id = $1 AND s.user_id = $2
+      WHERE s.id = $1 AND s.company_id = $2
       GROUP BY s.id
-    `, [id, userId])
+    `, [id, companyId])
     return rows[0] || null
   },
 
-  // Retorna UFs já ocupadas por outros vendedores do mesmo usuário (exceto excludeId)
-  async takenUFs(userId, excludeSellerId = null) {
+  // Retorna UFs já ocupadas por outros vendedores da mesma empresa (exceto excludeId)
+  async takenUFs(companyId, excludeSellerId = null) {
     const { rows } = await db.query(
       `SELECT su.uf
        FROM seller_ufs su
        JOIN sellers s ON s.id = su.seller_id
-       WHERE s.user_id = $1
+       WHERE s.company_id = $1
          AND s.ativo = true
          AND ($2::int IS NULL OR s.id <> $2)`,
-      [userId, excludeSellerId]
+      [companyId, excludeSellerId]
     )
     return rows.map(r => r.uf)
   },
 
   // Valida que nenhuma das UFs solicitadas já está ocupada por outro vendedor
-  async validateUFsAvailable(ufs, userId, excludeSellerId = null) {
+  async validateUFsAvailable(ufs, companyId, excludeSellerId = null) {
     if (!ufs || ufs.length === 0) return
-    const taken = await this.takenUFs(userId, excludeSellerId)
+    const taken = await this.takenUFs(companyId, excludeSellerId)
     const conflicts = ufs.map(u => u.toUpperCase()).filter(u => taken.includes(u))
     if (conflicts.length > 0) {
       const err = new Error(`UF(s) já atribuída(s) a outro vendedor: ${conflicts.join(', ')}`)
@@ -59,14 +59,14 @@ export const SellerModel = {
     }
   },
 
-  async create({ nome, whatsapp, ufs = [] }, userId) {
-    await this.validateUFsAvailable(ufs, userId)
+  async create({ nome, whatsapp, ufs = [] }, companyId) {
+    await this.validateUFsAvailable(ufs, companyId)
     const client = await db.connect()
     try {
       await client.query('BEGIN')
       const { rows } = await client.query(
-        'INSERT INTO sellers (nome, whatsapp, user_id) VALUES ($1, $2, $3) RETURNING *',
-        [nome, whatsapp, userId]
+        'INSERT INTO sellers (nome, whatsapp, company_id) VALUES ($1, $2, $3) RETURNING *',
+        [nome, whatsapp, companyId]
       )
       const seller = rows[0]
       for (const uf of ufs) {
@@ -76,7 +76,7 @@ export const SellerModel = {
         )
       }
       await client.query('COMMIT')
-      return this.get(seller.id, userId)
+      return this.get(seller.id, companyId)
     } catch (err) {
       await client.query('ROLLBACK')
       throw err
@@ -85,9 +85,9 @@ export const SellerModel = {
     }
   },
 
-  async update(id, { nome, whatsapp, ativo, ufs }, userId) {
+  async update(id, { nome, whatsapp, ativo, ufs }, companyId) {
     if (Array.isArray(ufs)) {
-      await this.validateUFsAvailable(ufs, userId, id)
+      await this.validateUFsAvailable(ufs, companyId, id)
     }
     const client = await db.connect()
     try {
@@ -97,8 +97,8 @@ export const SellerModel = {
          SET nome     = COALESCE($1, nome),
              whatsapp = COALESCE($2, whatsapp),
              ativo    = COALESCE($3, ativo)
-         WHERE id = $4 AND user_id = $5`,
-        [nome, whatsapp, ativo, id, userId]
+         WHERE id = $4 AND company_id = $5`,
+        [nome, whatsapp, ativo, id, companyId]
       )
       if (Array.isArray(ufs)) {
         await client.query('DELETE FROM seller_ufs WHERE seller_id = $1', [id])
@@ -110,7 +110,7 @@ export const SellerModel = {
         }
       }
       await client.query('COMMIT')
-      return this.get(id, userId)
+      return this.get(id, companyId)
     } catch (err) {
       await client.query('ROLLBACK')
       throw err
@@ -119,7 +119,7 @@ export const SellerModel = {
     }
   },
 
-  async delete(id, userId) {
-    await db.query('DELETE FROM sellers WHERE id = $1 AND user_id = $2', [id, userId])
+  async delete(id, companyId) {
+    await db.query('DELETE FROM sellers WHERE id = $1 AND company_id = $2', [id, companyId])
   },
 }

@@ -21,7 +21,7 @@ async function buildAttachments(req) {
 
   const catalogId = req.body?.catalog_id
   if (catalogId) {
-    const catalog  = await CatalogModel.get(catalogId, req.user.id)
+    const catalog  = await CatalogModel.get(catalogId, req.user.company_id)
     if (!catalog) throw new AppError('Catálogo não encontrado.', 404)
     const products = await ProductModel.listByCatalog(catalogId)
     const pdfBuffer = await generateCatalogPdf({ catalog, products })

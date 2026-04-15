@@ -197,7 +197,7 @@ export const ProspectingController = {
         return true
       })
 
-      const { unique, duplicates } = await filterExisting(prospects, req.user.id)
+      const { unique, duplicates } = await filterExisting(prospects, req.user.company_id)
 
       const limitStatus = getSerperLimitStatus()
       res.json({
@@ -247,7 +247,7 @@ export const ProspectingController = {
       }
 
       // Re-run deduplication server-side (never trust client-side alone)
-      const { unique } = await filterExisting(prospects, req.user.id)
+      const { unique } = await filterExisting(prospects, req.user.company_id)
       if (unique.length === 0) {
         return res.json({ saved: 0, message: 'Todos os prospects já existem na base.' })
       }
@@ -265,7 +265,7 @@ export const ProspectingController = {
           // Priority: parsed address UF → search UF (_ufFallback) → 'XX' (unknown state marker)
           if (!clientData.uf) clientData.uf = _ufFallback || 'XX'
 
-          const client = await ClientModel.create(clientData, req.user.id)
+          const client = await ClientModel.create(clientData, req.user.company_id)
           ids.push(client.id)
           saved++
         } catch (err) {
@@ -300,7 +300,7 @@ export const ProspectingController = {
       const results = []
 
       for (const id of clientIds) {
-        const client = await ClientModel.get(id, req.user.id)
+        const client = await ClientModel.get(id, req.user.company_id)
         if (!client) continue
 
         // Só enriquece quem tem algum campo de contato/social faltando

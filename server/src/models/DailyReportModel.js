@@ -1,16 +1,16 @@
 import db from '../db/db.js'
 
 export const DailyReportModel = {
-  async getSummary(date, userId) {
+  async getSummary(date, companyId) {
     const { rows } = await db.query(`
       SELECT
         e.event_type,
         COUNT(*)::int AS total
       FROM daily_report_events e
       JOIN clients c ON c.id = e.client_id
-      WHERE e.event_date = $1 AND c.user_id = $2
+      WHERE e.event_date = $1 AND c.company_id = $2
       GROUP BY e.event_type
-    `, [date, userId])
+    `, [date, companyId])
 
     const summary = {
       contacted:          0,
@@ -26,7 +26,7 @@ export const DailyReportModel = {
     return summary
   },
 
-  async getDetails(date, userId) {
+  async getDetails(date, companyId) {
     const { rows } = await db.query(`
       SELECT
         e.id         AS event_id,
@@ -39,9 +39,9 @@ export const DailyReportModel = {
         c.whatsapp
       FROM daily_report_events e
       JOIN clients c ON c.id = e.client_id
-      WHERE e.event_date = $1 AND c.user_id = $2
+      WHERE e.event_date = $1 AND c.company_id = $2
       ORDER BY e.event_type, e.created_at ASC
-    `, [date, userId])
+    `, [date, companyId])
 
     return {
       contacted:         rows.filter(r => r.event_type === 'contacted'),
@@ -59,15 +59,15 @@ export const DailyReportModel = {
   },
 
   // Lista datas que têm eventos (para o calendário/histórico)
-  async listDatesWithEvents(userId) {
+  async listDatesWithEvents(companyId) {
     const { rows } = await db.query(`
       SELECT DISTINCT e.event_date
       FROM daily_report_events e
       JOIN clients c ON c.id = e.client_id
-      WHERE c.user_id = $1
+      WHERE c.company_id = $1
       ORDER BY e.event_date DESC
       LIMIT 90
-    `, [userId])
+    `, [companyId])
     return rows.map(r => r.event_date)
   },
 }
