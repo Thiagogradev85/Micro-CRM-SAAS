@@ -94,35 +94,96 @@ export function AdminUsersPage() {
     })
   }
 
-  function handleEditCompany(user) {
-    let selectedCompanyId = user.company_id ? String(user.company_id) : ''
+  function handleEditUser(user) {
+    const fields = {
+      nome: user.nome,
+      email: user.email,
+      role: user.role,
+      company_id: user.company_id ? String(user.company_id) : '',
+      password: '',
+    }
     showModal({
       type: 'info',
-      title: `Alterar empresa — ${user.nome}`,
+      title: `Editar usuário — ${user.nome}`,
       message: (
-        <div className="mt-2 space-y-2">
-          <label className="block text-xs text-zinc-400">Empresa</label>
-          <select
-            defaultValue={selectedCompanyId}
-            onChange={e => { selectedCompanyId = e.target.value }}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-          >
-            <option value="">— Sem empresa —</option>
-            {companies.map(c => (
-              <option key={c.id} value={String(c.id)}>{c.nome}</option>
-            ))}
-          </select>
-          <p className="text-xs text-zinc-500">O usuário precisará fazer login novamente para ver a mudança.</p>
+        <div className="mt-2 space-y-3">
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Nome</label>
+            <input
+              defaultValue={fields.nome}
+              onChange={e => { fields.nome = e.target.value }}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">E-mail</label>
+            <input
+              type="email"
+              defaultValue={fields.email}
+              onChange={e => { fields.email = e.target.value }}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Perfil</label>
+            <select
+              defaultValue={fields.role}
+              onChange={e => { fields.role = e.target.value }}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+            >
+              <option value="user">Usuário</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Empresa</label>
+            <select
+              defaultValue={fields.company_id}
+              onChange={e => { fields.company_id = e.target.value }}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+            >
+              <option value="">— Sem empresa —</option>
+              {companies.map(c => (
+                <option key={c.id} value={String(c.id)}>{c.nome}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Nova senha <span className="text-zinc-600">(deixe em branco para não alterar)</span></label>
+            <input
+              type="password"
+              minLength={6}
+              placeholder="Mínimo 6 caracteres"
+              onChange={e => { fields.password = e.target.value }}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-600 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <p className="text-xs text-zinc-500">Alterações de empresa e perfil requerem novo login.</p>
         </div>
       ),
       actions: [{
         label: 'Salvar',
         variant: 'primary',
         onClick: async () => {
+          if (!fields.nome.trim() || !fields.email.trim()) {
+            showModal({ type: 'error', title: 'Campos obrigatórios', message: 'Nome e e-mail são obrigatórios.' })
+            return
+          }
+          if (fields.password && fields.password.length < 6) {
+            showModal({ type: 'error', title: 'Senha inválida', message: 'A senha deve ter pelo menos 6 caracteres.' })
+            return
+          }
           try {
-            await api.updateUser(user.id, { company_id: selectedCompanyId ? parseInt(selectedCompanyId) : null })
+            const payload = {
+              nome: fields.nome.trim(),
+              email: fields.email.trim(),
+              role: fields.role,
+              company_id: fields.company_id ? parseInt(fields.company_id) : null,
+            }
+            if (fields.password) payload.password = fields.password
+            await api.updateUser(user.id, payload)
             await fetchUsers()
-            showModal({ type: 'success', title: 'Empresa alterada', message: `${user.nome} foi atualizado.` })
+            showModal({ type: 'success', title: 'Usuário atualizado', message: `${fields.nome} foi salvo com sucesso.` })
           } catch (err) {
             showModal({ type: 'error', title: 'Erro', message: err.message })
           }
@@ -307,8 +368,8 @@ export function AdminUsersPage() {
                   {user.ativo ? <ToggleRight size={16} className="text-green-400" /> : <ToggleLeft size={16} />}
                 </button>
                 <button
-                  onClick={() => handleEditCompany(user)}
-                  title="Alterar empresa"
+                  onClick={() => handleEditUser(user)}
+                  title="Editar usuário"
                   className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-blue-400"
                 >
                   <Pencil size={13} />
