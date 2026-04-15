@@ -4,6 +4,7 @@ import { filterExisting }  from '../modules/prospecting/deduplication.js'
 import { enrichClient }    from '../modules/prospecting/enrichClient.js'
 import { ClientModel }     from '../models/ClientModel.js'
 import { AppError }        from '../utils/AppError.js'
+import { getEffectiveKeys } from '../config/configService.js'
 
 /**
  * Detects if a URL belongs to a known social network.
@@ -141,6 +142,8 @@ export const ProspectingController = {
 
       if (!segment?.trim()) throw new AppError('O campo "segmento" é obrigatório.', 400)
 
+      const apiKeys = await getEffectiveKeys(req.user.id)
+
       // Support multiple segments separated by commas — search each individually
       const segments = segment.split(',').map(s => s.trim()).filter(Boolean)
 
@@ -160,7 +163,7 @@ export const ProspectingController = {
           segment: seg,
           city:    city?.trim() || null,
           uf:      uf?.trim()   || null,
-        })
+        }, apiKeys)
         allPlaces    = allPlaces.concat(places)
         totalCredits += creditsUsed
         if (source) fallbackSource = source
@@ -212,8 +215,8 @@ export const ProspectingController = {
         ...(limitStatus && {
           serperLimit: {
             ...limitStatus,
-            serpapiAvailable: !!process.env.SERPAPI_KEY,
-            bingAvailable:    !!process.env.BING_SEARCH_KEY,
+            serpapiAvailable: !!apiKeys.SERPAPI_KEY,
+            bingAvailable:    !!apiKeys.BING_SEARCH_KEY,
           },
         }),
       })
@@ -223,8 +226,8 @@ export const ProspectingController = {
           error: 'SERPER_LIMIT_REACHED',
           serperLimit: {
             ...getSerperLimitStatus(),
-            serpapiAvailable: !!process.env.SERPAPI_KEY,
-            bingAvailable:    !!process.env.BING_SEARCH_KEY,
+            serpapiAvailable: !!apiKeys.SERPAPI_KEY,
+            bingAvailable:    !!apiKeys.BING_SEARCH_KEY,
           },
         })
       }
@@ -297,6 +300,7 @@ export const ProspectingController = {
         throw new AppError('Máximo de 20 clientes por enriquecimento.', 400)
       }
 
+      const apiKeys = await getEffectiveKeys(req.user.id)
       const results = []
 
       for (const id of clientIds) {
@@ -311,7 +315,7 @@ export const ProspectingController = {
         }
 
         try {
-          const suggestions = await enrichClient(client)
+          const suggestions = await enrichClient(client, apiKeys)
           results.push({ id, nome: client.nome, suggestions })
         } catch (err) {
           results.push({ id, nome: client.nome, suggestions: {}, error: err.message })
@@ -323,8 +327,8 @@ export const ProspectingController = {
       if (limitStatus) {
         response.serperLimit = {
           ...limitStatus,
-          serpapiAvailable: !!process.env.SERPAPI_KEY,
-          bingAvailable:    !!process.env.BING_SEARCH_KEY,
+          serpapiAvailable: !!apiKeys.SERPAPI_KEY,
+          bingAvailable:    !!apiKeys.BING_SEARCH_KEY,
         }
       }
 
