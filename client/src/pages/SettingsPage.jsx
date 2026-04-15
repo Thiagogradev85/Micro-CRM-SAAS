@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
-  Settings, Lock, Eye, EyeOff, CheckCircle, XCircle,
-  Loader2, Save, FlaskConical, AlertTriangle, RefreshCw, Trash2,
+  Settings, Eye, EyeOff, CheckCircle,
+  Loader2, Save, FlaskConical, AlertTriangle, RefreshCw, Trash2, Globe,
 } from 'lucide-react'
 import { api } from '../utils/api.js'
+import { useAuth } from '../contexts/AuthContext.jsx'
 import { useModal } from '../hooks/useModal.jsx'
-import { PasswordPromptModal } from '../components/PasswordPromptModal.jsx'
 
 // ─── Definição dos grupos e chaves ───────────────────────────────────────────
 const GROUPS = [
@@ -13,6 +13,7 @@ const GROUPS = [
     id: 'db',
     label: 'Banco de Dados',
     description: 'Conexão com o PostgreSQL (Neon). DATABASE_URL é obrigatório no Render.',
+    adminOnly: true,
     keys: [
       {
         key: 'DATABASE_URL',
@@ -95,44 +96,24 @@ const GROUPS = [
       },
     ],
   },
-  {
-    id: 'security',
-    label: 'Segurança',
-    description: 'Senha de acesso a esta página de configurações.',
-    keys: [
-      {
-        key: 'SETTINGS_PASSWORD',
-        label: 'Senha das Configurações',
-        description: 'Senha usada para acessar esta página. Padrão: admin1234',
-        placeholder: 'Nova senha...',
-        testable: false,
-      },
-    ],
-  },
 ]
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export function SettingsPage() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const { modal, showModal } = useModal()
-
-  const [authed, setAuthed]     = useState(() => sessionStorage.getItem('settings_authed') === '1')
-  const [password, setPassword] = useState('')
-  const [authError, setAuthError] = useState('')
-  const [authLoading, setAuthLoading] = useState(false)
 
   const [config, setConfig]       = useState([])
   const [loading, setLoading]     = useState(false)
   const [values, setValues]       = useState({})
   const [revealedValues, setRevealedValues] = useState({}) // {KEY: string} valor real revelado
-  const [revealPrompt, setRevealPrompt]   = useState(null) // { key, label } | null
-  const [revealPwdError, setRevealPwdError] = useState('')
   const [saving, setSaving]       = useState({})
   const [testing, setTesting]     = useState({})
   const [clearing, setClearing]   = useState({})
   const [revealing, setRevealing] = useState({})
   const [saved, setSaved]         = useState({})  // {KEY: bool} — badge verde temporário
 
-  // ── Carrega config ao autenticar ──
   const fetchConfig = useCallback(async () => {
     setLoading(true)
     try {
@@ -149,26 +130,7 @@ export function SettingsPage() {
     }
   }, [showModal])
 
-  useEffect(() => {
-    if (authed) fetchConfig()
-  }, [authed, fetchConfig])
-
-  // ── Login ──
-  async function handleLogin(e) {
-    e.preventDefault()
-    setAuthLoading(true)
-    setAuthError('')
-    try {
-      await api.settingsAuth(password)
-      sessionStorage.setItem('settings_authed', '1')
-      sessionStorage.setItem('settings_password', password)
-      setAuthed(true)
-    } catch (err) {
-      setAuthError(err.message || 'Senha incorreta.')
-    } finally {
-      setAuthLoading(false)
-    }
-  }
+  useEffect(() => { fetchConfig() }, [fetchConfig])
 
   // ── Salvar com confirmação se chave vier do Render ──
   function handleSave(key) {
@@ -196,8 +158,7 @@ export function SettingsPage() {
     if (!value) return
     setSaving(s => ({ ...s, [key]: true }))
     try {
-      const pwd = sessionStorage.getItem('settings_password') || password
-      await api.saveSettings(pwd, { [key]: value })
+      await api.saveSettings({ [key]: value })
       setSaved(s => ({ ...s, [key]: true }))
       setTimeout(() => setSaved(s => ({ ...s, [key]: false })), 3000)
       setValues(v => { const n = { ...v }; delete n[key]; return n })
@@ -207,10 +168,7 @@ export function SettingsPage() {
         type: 'error',
         title: 'Erro ao salvar',
         message: err.message || 'Não foi possível salvar a configuração.',
-        details: [
-          'Verifique se o servidor está rodando.',
-          'Confirme que a senha de acesso está correta.',
-        ],
+        details: ['Verifique se o servidor está rodando.'],
       })
     } finally {
       setSaving(s => ({ ...s, [key]: false }))
@@ -221,9 +179,8 @@ export function SettingsPage() {
   async function handleTest(key) {
     setTesting(t => ({ ...t, [key]: true }))
     try {
-      const pwd = sessionStorage.getItem('settings_password') || password
       const typedValue = values[key]
-      const data = await api.testSetting(pwd, key, typedValue || undefined)
+      const data = await api.testSetting(key, typedValue || undefined)
 
       if (data.ok) {
         showModal({
@@ -250,10 +207,7 @@ export function SettingsPage() {
         type: 'error',
         title: 'Erro ao testar',
         message: err.message || 'Não foi possível realizar o teste.',
-        details: [
-          'Verifique se o servidor local está rodando (bun run dev).',
-          'Confirme que a chave foi salva corretamente.',
-        ],
+        details: ['Verifique se o servidor local está rodando (bun run dev).'],
       })
     } finally {
       setTesting(t => ({ ...t, [key]: false }))
@@ -264,15 +218,13 @@ export function SettingsPage() {
   async function handleTestCSE() {
     setTesting(t => ({ ...t, GOOGLE_CSE_KEY: true }))
     try {
-      const pwd = sessionStorage.getItem('settings_password') || password
-      // Salva valores digitados pendentes antes de testar
       const toSave = {}
       if (values['GOOGLE_CSE_KEY']) toSave['GOOGLE_CSE_KEY'] = values['GOOGLE_CSE_KEY']
       if (values['GOOGLE_CSE_CX'])  toSave['GOOGLE_CSE_CX']  = values['GOOGLE_CSE_CX']
       if (Object.keys(toSave).length > 0) {
-        await api.saveSettings(pwd, toSave)
+        await api.saveSettings(toSave)
       }
-      const data = await api.testSetting(pwd, 'GOOGLE_CSE_KEY')
+      const data = await api.testSetting('GOOGLE_CSE_KEY')
       if (data.ok) {
         showModal({ type: 'success', title: 'Google CSE válido!', message: data.message })
         if (Object.keys(toSave).length > 0) {
@@ -306,40 +258,31 @@ export function SettingsPage() {
     }
   }
 
-  // ── Revelar valor completo da chave (abre modal de senha) ──
-  function handleReveal(key, label) {
+  // ── Revelar valor completo da chave ──
+  async function handleReveal(key) {
     if (revealedValues[key]) {
       setRevealedValues(v => { const n = { ...v }; delete n[key]; return n })
       return
     }
-    setRevealPwdError('')
-    setRevealPrompt({ key, label })
-  }
-
-  async function submitReveal(password) {
-    if (!password || !revealPrompt) return
-    const { key } = revealPrompt
     setRevealing(r => ({ ...r, [key]: true }))
-    setRevealPwdError('')
     try {
-      const data = await api.revealSetting(password, key)
+      const data = await api.revealSetting(key)
       if (data.ok) {
         setRevealedValues(v => ({ ...v, [key]: data.value }))
         setTimeout(() => setRevealedValues(v => {
           const n = { ...v }; delete n[key]; return n
         }), 30000)
-        setRevealPrompt(null)
       } else {
-        setRevealPwdError(data.message || 'Senha incorreta.')
+        showModal({ type: 'error', title: 'Erro ao revelar', message: data.message || 'Não foi possível revelar a chave.' })
       }
     } catch (err) {
-      setRevealPwdError(err.message || 'Senha incorreta.')
+      showModal({ type: 'error', title: 'Erro ao revelar', message: err.message || 'Não foi possível revelar a chave.' })
     } finally {
       setRevealing(r => ({ ...r, [key]: false }))
     }
   }
 
-  // ── Limpar chave do banco (permite que o Render env var reassuma) ──
+  // ── Limpar chave do banco ──
   async function handleClear(key, label) {
     showModal({
       type: 'warning',
@@ -352,8 +295,7 @@ export function SettingsPage() {
           onClick: async () => {
             setClearing(c => ({ ...c, [key]: true }))
             try {
-              const pwd = sessionStorage.getItem('settings_password') || password
-              await api.saveSettings(pwd, { [key]: '' })
+              await api.saveSettings({ [key]: '' })
               await fetchConfig()
             } catch (err) {
               showModal({
@@ -374,7 +316,6 @@ export function SettingsPage() {
     return config.find(c => c.key === key)
   }
 
-  // Dicas específicas por chave para facilitar o diagnóstico
   function getTestErrorHints(key, message = '') {
     const hints = {
       ANTHROPIC_API_KEY: [
@@ -385,7 +326,6 @@ export function SettingsPage() {
       SERPER_API_KEY: [
         'Acesse serper.dev → faça login → copie a API Key do dashboard.',
         'O plano gratuito inclui 2.500 buscas/mês.',
-        'Certifique-se de copiar a chave completa sem espaços.',
       ],
       SERPAPI_KEY: [
         'Acesse serpapi.com → faça login → copie a API Key.',
@@ -403,7 +343,6 @@ export function SettingsPage() {
         'GOOGLE_CSE_KEY e GOOGLE_CSE_CX devem ambas estar configuradas.',
         'Acesse programmablesearchengine.google.com para criar um mecanismo.',
         'Ative a Custom Search API no Google Cloud Console.',
-        'Atenção: é necessário vincular um cartão no Google Cloud mesmo para usar as 100 buscas gratuitas/dia.',
       ],
     }
     const base = hints[key] || []
@@ -416,61 +355,8 @@ export function SettingsPage() {
     return base
   }
 
-  // ── Tela de login ──
-  if (!authed) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-        {modal}
-        <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-14 h-14 bg-sky-600/20 rounded-2xl flex items-center justify-center mb-4">
-              <Lock size={28} className="text-sky-400" />
-            </div>
-            <h1 className="text-white font-bold text-xl">Configurações</h1>
-            <p className="text-zinc-500 text-sm mt-1 text-center">
-              Digite a senha de administrador para continuar.
-            </p>
-          </div>
+  const visibleGroups = GROUPS.filter(g => !g.adminOnly || isAdmin)
 
-          <form onSubmit={handleLogin} className="flex flex-col gap-4">
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Senha"
-              autoFocus
-              className="w-full bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500
-                         rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-sky-500 transition-colors"
-            />
-
-            {authError && (
-              <div className="flex items-center gap-2 bg-red-950/50 border border-red-800/50 rounded-lg px-3 py-2.5">
-                <XCircle size={15} className="text-red-400 flex-shrink-0" />
-                <p className="text-red-300 text-sm">{authError}</p>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={authLoading || !password}
-              className="bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed
-                         text-white font-semibold rounded-lg py-3 text-sm transition-colors
-                         flex items-center justify-center gap-2"
-            >
-              {authLoading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
-              Entrar
-            </button>
-          </form>
-
-          <p className="text-zinc-600 text-xs text-center mt-6">
-            Senha padrão: <span className="text-zinc-500 font-mono">admin1234</span>
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Tela principal ──
   return (
     <div className="min-h-screen bg-zinc-950 p-6">
       {modal}
@@ -487,36 +373,42 @@ export function SettingsPage() {
               <p className="text-zinc-500 text-xs mt-0.5">Chaves de API e integrações</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={fetchConfig}
-              disabled={loading}
-              className="text-zinc-400 hover:text-zinc-200 p-2 rounded-lg hover:bg-zinc-800 transition-colors"
-              title="Recarregar"
-            >
-              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-            </button>
-            <button
-              onClick={() => { sessionStorage.removeItem('settings_authed'); setAuthed(false) }}
-              className="text-zinc-500 hover:text-zinc-300 text-xs px-3 py-1.5 rounded-lg
-                         hover:bg-zinc-800 transition-colors flex items-center gap-1.5"
-            >
-              <Lock size={12} /> Sair
-            </button>
-          </div>
+          <button
+            onClick={fetchConfig}
+            disabled={loading}
+            className="text-zinc-400 hover:text-zinc-200 p-2 rounded-lg hover:bg-zinc-800 transition-colors"
+            title="Recarregar"
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </button>
         </div>
 
-        {/* Aviso DATABASE_URL */}
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6 flex gap-3">
-          <AlertTriangle size={18} className="text-amber-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-amber-300 text-sm font-medium">DATABASE_URL deve ser configurado no Render</p>
-            <p className="text-amber-500/80 text-xs mt-1">
-              Esta variável é necessária para o servidor iniciar. Configure-a nas Environment Variables
-              do painel do Render antes de fazer o deploy. As demais chaves podem ser configuradas aqui.
-            </p>
+        {/* Aviso DATABASE_URL (admin only) */}
+        {isAdmin && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6 flex gap-3">
+            <AlertTriangle size={18} className="text-amber-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-amber-300 text-sm font-medium">DATABASE_URL deve ser configurado no Render</p>
+              <p className="text-amber-500/80 text-xs mt-1">
+                Esta variável é necessária para o servidor iniciar. Configure-a nas Environment Variables
+                do painel do Render antes de fazer o deploy. As demais chaves podem ser configuradas aqui.
+              </p>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Aviso usuário não-admin sobre fallback */}
+        {!isAdmin && (
+          <div className="bg-sky-500/10 border border-sky-500/30 rounded-xl p-4 mb-6 flex gap-3">
+            <Globe size={18} className="text-sky-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sky-300 text-sm font-medium">Chaves personalizadas por usuário</p>
+              <p className="text-sky-500/80 text-xs mt-1">
+                Você pode configurar suas próprias chaves de API. Se não configurar, as chaves globais do admin serão usadas automaticamente.
+              </p>
+            </div>
+          </div>
+        )}
 
         {loading && (
           <div className="flex justify-center py-12">
@@ -525,7 +417,7 @@ export function SettingsPage() {
         )}
 
         {/* Grupos */}
-        {!loading && GROUPS.map(group => (
+        {!loading && visibleGroups.map(group => (
           <div key={group.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl mb-4 overflow-hidden">
             <div className="px-6 py-4 border-b border-zinc-800">
               <h2 className="text-white font-semibold text-sm">{group.label}</h2>
@@ -534,16 +426,15 @@ export function SettingsPage() {
 
             <div className="divide-y divide-zinc-800/60">
               {group.keys.map(def => {
-                const entry     = getConfigEntry(def.key)
-                const isSaving  = saving[def.key]
-                const isTesting = testing[def.key]
+                const entry      = getConfigEntry(def.key)
+                const isSaving   = saving[def.key]
+                const isTesting  = testing[def.key]
                 const isClearing = clearing[def.key]
-                const wasSaved  = saved[def.key]
-                const isDirty   = !!values[def.key]
+                const wasSaved   = saved[def.key]
+                const isDirty    = !!values[def.key]
                 const isRevealed  = !!revealedValues[def.key]
                 const isRevealing = !!revealing[def.key]
-                // Mostra lixeira se o valor veio do banco (pode ter sido digitado errado)
-                const hasDbValue = entry?.source === 'db' || entry?.source === 'env+db'
+                const hasDbValue  = entry?.source === 'db' || entry?.source === 'env+db'
 
                 return (
                   <div key={def.key} className="px-6 py-5">
@@ -563,6 +454,18 @@ export function SettingsPage() {
                             </span>
                           )}
 
+                          {/* Origem da chave */}
+                          {entry?.source === 'user' && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-400">
+                              sua chave
+                            </span>
+                          )}
+                          {entry?.source === 'global' && !isAdmin && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400"
+                                  title="Você está usando a chave global configurada pelo admin">
+                              chave global do admin
+                            </span>
+                          )}
                           {entry?.source === 'env' && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400">
                               via Render
@@ -574,7 +477,7 @@ export function SettingsPage() {
                               env + banco ⚠
                             </span>
                           )}
-                          {entry?.source === 'db' && (
+                          {entry?.source === 'db' && isAdmin && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-400">
                               via banco
                             </span>
@@ -640,9 +543,9 @@ export function SettingsPage() {
                           {!def.isText && (
                             <button
                               type="button"
-                              onClick={() => handleReveal(def.key, def.label)}
+                              onClick={() => handleReveal(def.key)}
                               disabled={isRevealing}
-                              title={isRevealed ? 'Ocultar chave' : 'Revelar chave completa (requer senha)'}
+                              title={isRevealed ? 'Ocultar chave' : 'Revelar chave completa'}
                               className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
                             >
                               {isRevealing
@@ -709,18 +612,6 @@ export function SettingsPage() {
           As chaves são salvas no banco de dados e carregadas automaticamente na próxima inicialização do servidor.
         </p>
       </div>
-
-      <PasswordPromptModal
-        open={!!revealPrompt}
-        title="Revelar chave"
-        description={revealPrompt ? `Digite a senha de admin para ver o valor de ${revealPrompt.label}.` : ''}
-        confirmLabel="Revelar"
-        confirmIcon={Eye}
-        loading={revealPrompt ? !!revealing[revealPrompt.key] : false}
-        error={revealPwdError}
-        onConfirm={submitReveal}
-        onClose={() => { setRevealPrompt(null); setRevealPwdError('') }}
-      />
     </div>
   )
 }

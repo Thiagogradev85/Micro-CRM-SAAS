@@ -34,12 +34,13 @@ Regras:
 - Se um campo não aparecer, use null
 - Ignore páginas de capa, institucional, mapas e agradecimentos`
 
-export async function importCatalogPdf(buffer) {
-  if (!process.env.ANTHROPIC_API_KEY) {
+export async function importCatalogPdf(buffer, apiKeys = {}) {
+  const anthropicKey = apiKeys.ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_API_KEY
+  if (!anthropicKey) {
     throw new Error('ANTHROPIC_API_KEY não configurada no servidor.')
   }
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  const client = new Anthropic({ apiKey: anthropicKey })
   const base64Pdf = buffer.toString('base64')
 
   let raw

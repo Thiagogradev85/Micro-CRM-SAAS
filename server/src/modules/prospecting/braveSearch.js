@@ -13,8 +13,8 @@
 
 const BRAVE_URL = 'https://api.search.brave.com/res/v1/web/search'
 
-export async function searchWebBrave(query) {
-  const key = process.env.BRAVE_SEARCH_KEY
+export async function searchWebBrave(query, apiKeys = {}) {
+  const key = apiKeys.BRAVE_SEARCH_KEY ?? process.env.BRAVE_SEARCH_KEY
   if (!key) return null  // não configurado
 
   const params = new URLSearchParams({ q: query, country: 'br', search_lang: 'pt', count: '10' })

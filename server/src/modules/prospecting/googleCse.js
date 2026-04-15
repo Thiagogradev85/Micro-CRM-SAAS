@@ -17,9 +17,9 @@
 
 const CSE_URL = 'https://www.googleapis.com/customsearch/v1'
 
-export async function searchWebCse(query) {
-  const key = process.env.GOOGLE_CSE_KEY
-  const cx  = process.env.GOOGLE_CSE_CX
+export async function searchWebCse(query, apiKeys = {}) {
+  const key = apiKeys.GOOGLE_CSE_KEY ?? process.env.GOOGLE_CSE_KEY
+  const cx  = apiKeys.GOOGLE_CSE_CX  ?? process.env.GOOGLE_CSE_CX
   if (!key || !cx) return null  // não configurado — chamador trata silenciosamente
 
   const params = new URLSearchParams({ key, cx, q: query, gl: 'br', hl: 'pt', num: '10' })

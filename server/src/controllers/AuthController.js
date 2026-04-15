@@ -16,7 +16,10 @@ export async function login(req, res, next) {
     if (!email || !password) throw new AppError('Email e senha obrigatórios.', 400)
 
     const { rows } = await db.query(
-      `SELECT id, nome, email, password_hash, role, ativo, company_id FROM users WHERE email = $1`,
+      `SELECT u.id, u.nome, u.email, u.password_hash, u.role, u.ativo, u.company_id, c.nome AS company_nome
+       FROM users u
+       LEFT JOIN companies c ON c.id = u.company_id
+       WHERE u.email = $1`,
       [email.toLowerCase().trim()]
     )
     const user = rows[0]
@@ -29,7 +32,7 @@ export async function login(req, res, next) {
     const token = signToken({ id: user.id, email: user.email, nome: user.nome, role: user.role, company_id: user.company_id })
 
     res.cookie('token', token, COOKIE_OPTS)
-    res.json({ ok: true, user: { id: user.id, nome: user.nome, email: user.email, role: user.role, company_id: user.company_id } })
+    res.json({ ok: true, user: { id: user.id, nome: user.nome, email: user.email, role: user.role, company_id: user.company_id, company_nome: user.company_nome || null } })
   } catch (err) {
     next(err)
   }
@@ -42,8 +45,19 @@ export function logout(req, res) {
 }
 
 /** GET /auth/me */
-export function me(req, res) {
-  res.json({ user: req.user })
+export async function me(req, res, next) {
+  try {
+    const { rows } = await db.query(
+      `SELECT c.nome AS company_nome
+       FROM users u
+       LEFT JOIN companies c ON c.id = u.company_id
+       WHERE u.id = $1`,
+      [req.user.id]
+    )
+    res.json({ user: { ...req.user, company_nome: rows[0]?.company_nome || null } })
+  } catch (err) {
+    next(err)
+  }
 }
 
 /** GET /auth/users — admin: lista todos os usuários */

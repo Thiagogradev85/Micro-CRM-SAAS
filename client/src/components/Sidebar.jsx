@@ -49,14 +49,14 @@ export function Sidebar() {
       {/* Sidebar */}
       <aside className={`
         fixed top-0 left-0 h-full w-60 bg-zinc-900 border-r border-zinc-800 z-40
-        flex flex-col pt-14 pb-6
+        flex flex-col pt-10 md:pt-4 pb-6
         transition-transform duration-300
         ${open ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0 md:static md:flex
       `}>
-        <div className="px-4 mb-6 cursor-pointer" onClick={() => navigate('/clients')}>
+        <div className="px-4 mb-4 cursor-pointer" onClick={() => navigate('/clients')}>
           <span className="text-sky-400 font-bold text-lg tracking-tight hover:text-sky-300 transition-colors">⚡ CRM</span>
-          <p className="text-zinc-500 text-xs mt-0.5">Controle de Vendas</p>
+          <p className="text-zinc-500 text-xs mt-0.5 truncate">{user?.company_nome || 'Controle de Vendas'}</p>
         </div>
 
         <nav className="flex flex-col gap-1 px-2 flex-1">

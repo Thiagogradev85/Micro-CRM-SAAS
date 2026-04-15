@@ -203,9 +203,8 @@ export const api = {
   listCompanyUsers:     (id)       => request('GET',    `/companies/${id}/users`),
 
   // Settings
-  settingsAuth:   (password)         => request('POST', '/settings/auth', { password }),
-  getSettings:    ()                 => request('GET',  '/settings'),
-  saveSettings:   (password, values) => request('POST', '/settings', { password, values }),
-  testSetting:    (password, key, value) => request('POST', '/settings/test',   { password, key, value }),
-  revealSetting:  (password, key)        => request('POST', '/settings/reveal', { password, key }),
+  getSettings:   ()             => request('GET',  '/settings'),
+  saveSettings:  (values)       => request('POST', '/settings', { values }),
+  testSetting:   (key, value)   => request('POST', '/settings/test',   { key, value }),
+  revealSetting: (key)          => request('POST', '/settings/reveal', { key }),
 }

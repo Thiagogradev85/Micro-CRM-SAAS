@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { UserPlus, Trash2, ShieldCheck, User, ToggleLeft, ToggleRight, Loader2, KeyRound, Bell, BellOff, Building2 } from 'lucide-react'
+import { UserPlus, Trash2, ShieldCheck, User, ToggleLeft, ToggleRight, Loader2, KeyRound, Bell, BellOff, Building2, Pencil } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useModal } from '../hooks/useModal.js'
@@ -86,6 +86,43 @@ export function AdminUsersPage() {
           try {
             await api.updateUser(user.id, { password: newPassword })
             showModal({ type: 'success', title: 'Senha alterada', message: `Senha de ${user.nome} atualizada.` })
+          } catch (err) {
+            showModal({ type: 'error', title: 'Erro', message: err.message })
+          }
+        },
+      }],
+    })
+  }
+
+  function handleEditCompany(user) {
+    let selectedCompanyId = user.company_id ? String(user.company_id) : ''
+    showModal({
+      type: 'info',
+      title: `Alterar empresa — ${user.nome}`,
+      message: (
+        <div className="mt-2 space-y-2">
+          <label className="block text-xs text-zinc-400">Empresa</label>
+          <select
+            defaultValue={selectedCompanyId}
+            onChange={e => { selectedCompanyId = e.target.value }}
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+          >
+            <option value="">— Sem empresa —</option>
+            {companies.map(c => (
+              <option key={c.id} value={String(c.id)}>{c.nome}</option>
+            ))}
+          </select>
+          <p className="text-xs text-zinc-500">O usuário precisará fazer login novamente para ver a mudança.</p>
+        </div>
+      ),
+      actions: [{
+        label: 'Salvar',
+        variant: 'primary',
+        onClick: async () => {
+          try {
+            await api.updateUser(user.id, { company_id: selectedCompanyId ? parseInt(selectedCompanyId) : null })
+            await fetchUsers()
+            showModal({ type: 'success', title: 'Empresa alterada', message: `${user.nome} foi atualizado.` })
           } catch (err) {
             showModal({ type: 'error', title: 'Erro', message: err.message })
           }
@@ -268,6 +305,13 @@ export function AdminUsersPage() {
                   className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
                 >
                   {user.ativo ? <ToggleRight size={16} className="text-green-400" /> : <ToggleLeft size={16} />}
+                </button>
+                <button
+                  onClick={() => handleEditCompany(user)}
+                  title="Alterar empresa"
+                  className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-blue-400"
+                >
+                  <Pencil size={13} />
                 </button>
                 <button
                   onClick={() => handleResetPassword(user)}
