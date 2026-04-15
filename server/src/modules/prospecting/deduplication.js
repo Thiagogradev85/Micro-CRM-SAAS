@@ -90,10 +90,10 @@ export function nameSimilar(a, b) {
  * Scoped to a specific user — never crosses tenant boundary.
  * Returns lightweight objects: { normalizedName, phone }
  */
-async function loadExistingClients(userId) {
+async function loadExistingClients(companyId) {
   const { rows } = await db.query(
-    `SELECT nome, whatsapp, telefone FROM clients WHERE ativo = true AND user_id = $1`,
-    [userId]
+    `SELECT nome, whatsapp, telefone FROM clients WHERE ativo = true AND company_id = $1`,
+    [companyId]
   )
   return rows.map(r => ({
     normalizedName: normalize(r.nome),
@@ -110,8 +110,8 @@ async function loadExistingClients(userId) {
  * @param {object[]} prospects - Array of structured prospect objects
  * @returns {{ unique: object[], duplicates: object[] }}
  */
-export async function filterExisting(prospects, userId) {
-  const existing = await loadExistingClients(userId)
+export async function filterExisting(prospects, companyId) {
+  const existing = await loadExistingClients(companyId)
 
   const unique = []
   const duplicates = []

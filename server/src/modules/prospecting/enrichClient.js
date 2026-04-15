@@ -271,17 +271,15 @@ function nameMatchesHandle(clientName, handle) {
  * @param {{ id, nome, cidade, uf, whatsapp, telefone, email, instagram, facebook }} client
  * @returns {{ instagram?, facebook?, email?, whatsapp?, telefone? }}
  */
-export async function enrichClient(client) {
+export async function enrichClient(client, apiKeys = {}) {
   // Sanitiza campos — filtra strings "null"/"undefined" que vêm do banco como texto
   const sanitize = v => (!v || v === 'null' || v === 'undefined') ? null : v
   const nome       = sanitize(client.nome) || ''
   const uf         = sanitize(client.uf)
   const cidadeOrig = sanitize(client.cidade)
 
-  // Segmento de negócio configurável via ENRICH_SEGMENT no .env
-  // Ex: ENRICH_SEGMENT=loja de bicicletas
-  // Evita que clientes com nome genérico (ex: "BEVENUTTI") encontrem resultados errados
-  const segment = (process.env.ENRICH_SEGMENT || '').trim()
+  // Segmento de negócio configurável via ENRICH_SEGMENT (por usuário ou global)
+  const segment = (apiKeys.ENRICH_SEGMENT ?? process.env.ENRICH_SEGMENT ?? '').trim()
 
   const base       = [nome, cidadeOrig, uf].filter(Boolean).join(' ')
   const baseWithSeg = segment ? [nome, segment, cidadeOrig, uf].filter(Boolean).join(' ') : base
@@ -293,10 +291,10 @@ export async function enrichClient(client) {
 
   // Determina quais buscas ainda fazem sentido para este cliente
   const searches = [
-    searchWeb(`${baseWithSeg} contato telefone email whatsapp`),
-    client.instagram ? Promise.resolve(null) : searchWeb(`${baseWithSeg} site:instagram.com`),
-    client.facebook  ? Promise.resolve(null) : searchWeb(`${baseWithSeg} site:facebook.com`),
-    client.email     ? Promise.resolve(null) : searchWeb(`${quotedName} ${segment} email contato`.trim()),
+    searchWeb(`${baseWithSeg} contato telefone email whatsapp`, apiKeys),
+    client.instagram ? Promise.resolve(null) : searchWeb(`${baseWithSeg} site:instagram.com`, apiKeys),
+    client.facebook  ? Promise.resolve(null) : searchWeb(`${baseWithSeg} site:facebook.com`, apiKeys),
+    client.email     ? Promise.resolve(null) : searchWeb(`${quotedName} ${segment} email contato`.trim(), apiKeys),
   ]
 
   const [generalRes, igRes, fbRes, emailRes] = await Promise.allSettled(searches)
@@ -427,7 +425,7 @@ export async function enrichClient(client) {
   // ── Fallback Instagram A: busca só pelo nome sem cidade/UF (site:instagram.com) ──
   if (!instagram) {
     try {
-      const igFallback = await searchWeb(`${nome}${segment ? ' ' + segment : ''} site:instagram.com`)
+      const igFallback = await searchWeb(`${nome}${segment ? ' ' + segment : ''} site:instagram.com`, apiKeys)
       if (igFallback?.organic?.length) {
         for (const r of igFallback.organic) {
           if (!r.link?.includes('instagram.com')) continue
@@ -451,7 +449,7 @@ export async function enrichClient(client) {
   // mas uma busca normal encontra o perfil via link direto nos resultados
   if (!instagram) {
     try {
-      const igFree = await searchWeb(`${baseWithSeg} instagram perfil`)
+      const igFree = await searchWeb(`${baseWithSeg} instagram perfil`, apiKeys)
       if (igFree?.organic?.length) {
         // Prioriza links diretos ao instagram.com com correspondência de nome
         for (const r of igFree.organic.slice(0, 10)) {

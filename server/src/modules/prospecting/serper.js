@@ -39,9 +39,9 @@ export function getSerperLimitStatus() {
  * @param {string} query     — query completa (ex: "farmácias Curitiba PR")
  * @param {object} opts      — { segment, city, uf } para o Overpass
  */
-async function searchPlacesFallback(query, { segment, city, uf } = {}) {
+async function searchPlacesFallback(query, { segment, city, uf } = {}, apiKeys = {}) {
   // 1. SerpAPI Maps (gratuito, 100/mês compartilhados com web)
-  const serpResult = await searchMapsSerpApi(query)
+  const serpResult = await searchMapsSerpApi(query, apiKeys)
   if (serpResult) return serpResult
 
   // 2. OpenStreetMap via Overpass (gratuito, sem chave, sem limite)
@@ -54,17 +54,17 @@ async function searchPlacesFallback(query, { segment, city, uf } = {}) {
   throw new AppError('SERPER_LIMIT_REACHED', 402)
 }
 
-export async function searchPlaces(query, opts = {}) {
+export async function searchPlaces(query, opts = {}, apiKeys = {}) {
   // Limite já conhecido — vai direto ao fallback Maps
   if (serperLimitHitAt) {
     console.warn(`[Serper Maps] limite ativo, usando fallback para "${query}"`)
-    return searchPlacesFallback(query, opts)
+    return searchPlacesFallback(query, opts, apiKeys)
   }
 
-  const apiKey = process.env.SERPER_API_KEY
+  const apiKey = apiKeys.SERPER_API_KEY ?? process.env.SERPER_API_KEY
   if (!apiKey) {
     console.warn('[Serper Maps] SERPER_API_KEY não configurada — usando fallback direto')
-    return searchPlacesFallback(query, opts)
+    return searchPlacesFallback(query, opts, apiKeys)
   }
 
   let response
@@ -86,7 +86,7 @@ export async function searchPlaces(query, opts = {}) {
     if (msg.includes('not enough credits') || msg.includes('credits') || msg.includes('quota') || msg.includes('limit') || msg.includes('exceeded')) {
       serperLimitHitAt = serperLimitHitAt || new Date().toISOString()
       console.warn(`[Serper Maps] limite atingido, tentando fallback para "${query}"`)
-      return searchPlacesFallback(query, opts)
+      return searchPlacesFallback(query, opts, apiKeys)
     }
     if (response.status === 403) throw new AppError('Chave Serper inválida. Verifique a SERPER_API_KEY no servidor.', 403)
     throw new AppError(`Erro na API Serper: ${response.status}`, 502)
@@ -101,8 +101,8 @@ export async function searchPlaces(query, opts = {}) {
 
 // ── Serper Web Search (interno) ───────────────────────────────────────────────
 
-async function _searchWebSerper(query) {
-  const apiKey = process.env.SERPER_API_KEY
+async function _searchWebSerper(query, apiKeys = {}) {
+  const apiKey = apiKeys.SERPER_API_KEY ?? process.env.SERPER_API_KEY
   if (!apiKey) {
     // Sem chave configurada → simula limite para acionar cadeia de fallbacks web
     throw new AppError('SERPER_LIMIT_REACHED', 402)
@@ -156,12 +156,12 @@ async function _searchWebSerper(query) {
 // Providers não configurados retornam null e são ignorados silenciosamente.
 // Usuários sem nenhum fallback configurado não são afetados.
 
-async function tryFallbacks(query) {
+async function tryFallbacks(query, apiKeys = {}) {
   const providers = [
-    { name: 'SerpApi',     fn: () => searchWebSerpApi(query) },
-    { name: 'Brave',       fn: () => searchWebBrave(query)   },
-    { name: 'Bing',        fn: () => searchWebBing(query)    },
-    { name: 'Google CSE',  fn: () => searchWebCse(query)     },
+    { name: 'SerpApi',     fn: () => searchWebSerpApi(query, apiKeys) },
+    { name: 'Brave',       fn: () => searchWebBrave(query, apiKeys)   },
+    { name: 'Bing',        fn: () => searchWebBing(query, apiKeys)    },
+    { name: 'Google CSE',  fn: () => searchWebCse(query, apiKeys)     },
   ]
 
   for (const { name, fn } of providers) {
@@ -186,21 +186,21 @@ async function tryFallbacks(query) {
  * @param {string} query
  * @returns {{ organic, knowledgeGraph, localResults }}
  */
-export async function searchWeb(query) {
+export async function searchWeb(query, apiKeys = {}) {
   // Limite já conhecido nesta sessão — vai direto aos fallbacks
   if (serperLimitHitAt) {
-    const result = await tryFallbacks(query)
+    const result = await tryFallbacks(query, apiKeys)
     if (result) return result
     throw new AppError('SERPER_LIMIT_REACHED', 402)
   }
 
   try {
-    return await _searchWebSerper(query)
+    return await _searchWebSerper(query, apiKeys)
   } catch (err) {
     if (err.message === 'SERPER_LIMIT_REACHED') {
       serperLimitHitAt = serperLimitHitAt || new Date().toISOString()
       console.warn(`[Serper] Limite atingido em ${serperLimitHitAt} — tentando fallbacks...`)
-      const result = await tryFallbacks(query)
+      const result = await tryFallbacks(query, apiKeys)
       if (result) return result
       throw err
     }

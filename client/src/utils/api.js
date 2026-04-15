@@ -195,10 +195,16 @@ export const api = {
   updateUser:  (id, data) => request('PUT',    `/auth/users/${id}`, data),
   deleteUser:  (id)       => request('DELETE', `/auth/users/${id}`),
 
+  // Admin — gestão de empresas
+  listCompanies:        ()         => request('GET',    '/companies'),
+  createCompany:        (data)     => request('POST',   '/companies', data),
+  updateCompany:        (id, data) => request('PUT',    `/companies/${id}`, data),
+  deleteCompany:        (id)       => request('DELETE', `/companies/${id}`),
+  listCompanyUsers:     (id)       => request('GET',    `/companies/${id}/users`),
+
   // Settings
-  settingsAuth:   (password)         => request('POST', '/settings/auth', { password }),
-  getSettings:    ()                 => request('GET',  '/settings'),
-  saveSettings:   (password, values) => request('POST', '/settings', { password, values }),
-  testSetting:    (password, key, value) => request('POST', '/settings/test',   { password, key, value }),
-  revealSetting:  (password, key)        => request('POST', '/settings/reveal', { password, key }),
+  getSettings:   ()             => request('GET',  '/settings'),
+  saveSettings:  (values)       => request('POST', '/settings', { values }),
+  testSetting:   (key, value)   => request('POST', '/settings/test',   { key, value }),
+  revealSetting: (key)          => request('POST', '/settings/reveal', { key }),
 }

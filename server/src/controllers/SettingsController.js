@@ -1,9 +1,11 @@
 import db from '../db/db.js'
 import {
-  getAllConfig,
+  getUserConfig,
   setConfig,
-  verifySettingsPassword,
+  setUserConfig,
+  getEffectiveKey,
   MANAGED_KEYS,
+  ADMIN_ONLY_KEYS,
 } from '../config/configService.js'
 import { AppError } from '../utils/AppError.js'
 
@@ -20,42 +22,37 @@ async function apiErrorMessage(response) {
   }
 }
 
-/** POST /settings/auth — verifica senha */
-export async function authSettings(req, res, next) {
-  try {
-    const { password } = req.body
-    if (!password) throw new AppError('Senha obrigatória.', 400)
-    const ok = await verifySettingsPassword(password)
-    if (!ok) throw new AppError('Senha incorreta.', 401)
-    res.json({ ok: true })
-  } catch (err) {
-    next(err)
-  }
-}
-
-/** GET /settings — retorna todas as chaves (mascaradas) */
+/** GET /settings — retorna chaves mascaradas do usuário (com indicação de fallback global) */
 export async function getSettings(req, res, next) {
   try {
-    const config = await getAllConfig()
+    const config = await getUserConfig(req.user.id, req.user.role === 'admin')
     res.json(config)
   } catch (err) {
     next(err)
   }
 }
 
-/** POST /settings — salva uma ou mais chaves */
+/** POST /settings — salva uma ou mais chaves
+ *  Admin: salva no global (settings)
+ *  Usuário: salva no seu próprio override (user_settings)
+ */
 export async function saveSettings(req, res, next) {
   try {
-    const { password, values } = req.body
-    if (!password) throw new AppError('Senha obrigatória.', 400)
-    const ok = await verifySettingsPassword(password)
-    if (!ok) throw new AppError('Senha incorreta.', 401)
-
+    const { values } = req.body
     if (!values || typeof values !== 'object') throw new AppError('Payload inválido.', 400)
 
+    const isAdmin = req.user.role === 'admin'
+
+    const allowedKeys = isAdmin ? [...MANAGED_KEYS, ...ADMIN_ONLY_KEYS] : MANAGED_KEYS
+
     for (const [key, value] of Object.entries(values)) {
-      if (!MANAGED_KEYS.includes(key)) continue
-      await setConfig(key, value)
+      if (!allowedKeys.includes(key)) continue
+      // Chaves admin-only sempre vão pro global
+      if (isAdmin || ADMIN_ONLY_KEYS.includes(key)) {
+        await setConfig(key, value)
+      } else {
+        await setUserConfig(req.user.id, key, value)
+      }
     }
 
     res.json({ ok: true, saved: Object.keys(values).length })
@@ -64,18 +61,22 @@ export async function saveSettings(req, res, next) {
   }
 }
 
-/** POST /settings/test — testa uma chave específica (salva antes se value enviado) */
+/** POST /settings/test — testa uma chave específica usando o valor efetivo do usuário */
 export async function testSetting(req, res, next) {
   try {
-    const { password, key, value } = req.body
-    if (!password) throw new AppError('Senha obrigatória.', 400)
-    const ok = await verifySettingsPassword(password)
-    if (!ok) throw new AppError('Senha incorreta.', 401)
+    const { key, value } = req.body
 
-    // Se veio um valor novo, salva em process.env antes de testar
+    // Se enviou valor novo, salva temporariamente antes de testar
     if (value && MANAGED_KEYS.includes(key)) {
-      await setConfig(key, value)
+      if (req.user.role === 'admin') {
+        await setConfig(key, value)
+      } else {
+        await setUserConfig(req.user.id, key, value)
+      }
     }
+
+    // Resolve chave efetiva (própria ou fallback global)
+    const apiKey = await getEffectiveKey(req.user.id, key)
 
     switch (key) {
 
@@ -85,9 +86,7 @@ export async function testSetting(req, res, next) {
       }
 
       case 'ANTHROPIC_API_KEY': {
-        const apiKey = process.env.ANTHROPIC_API_KEY
-        if (!apiKey) return res.json({ ok: false, message: 'Chave não configurada. Cole a chave e clique Testar novamente.' })
-        // Usa um request mínimo para validar a chave sem consumir créditos
+        if (!apiKey) return res.json({ ok: false, message: 'Chave não configurada.' })
         const response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -107,8 +106,7 @@ export async function testSetting(req, res, next) {
       }
 
       case 'SERPER_API_KEY': {
-        const apiKey = process.env.SERPER_API_KEY
-        if (!apiKey) return res.json({ ok: false, message: 'Chave não configurada. Cole a chave e clique Testar novamente.' })
+        if (!apiKey) return res.json({ ok: false, message: 'Chave não configurada.' })
         const response = await fetch('https://google.serper.dev/search', {
           method: 'POST',
           headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
@@ -120,7 +118,6 @@ export async function testSetting(req, res, next) {
       }
 
       case 'SERPAPI_KEY': {
-        const apiKey = process.env.SERPAPI_KEY
         if (!apiKey) return res.json({ ok: false, message: 'Chave não configurada.' })
         const response = await fetch(`https://serpapi.com/account?api_key=${apiKey}`)
         if (response.ok) return res.json({ ok: true, message: 'Chave SerpApi válida.' })
@@ -129,7 +126,6 @@ export async function testSetting(req, res, next) {
       }
 
       case 'BRAVE_SEARCH_KEY': {
-        const apiKey = process.env.BRAVE_SEARCH_KEY
         if (!apiKey) return res.json({ ok: false, message: 'Chave não configurada.' })
         const response = await fetch('https://api.search.brave.com/res/v1/web/search?q=test&count=1', {
           headers: { Accept: 'application/json', 'X-Subscription-Token': apiKey },
@@ -140,7 +136,6 @@ export async function testSetting(req, res, next) {
       }
 
       case 'BING_SEARCH_KEY': {
-        const apiKey = process.env.BING_SEARCH_KEY
         if (!apiKey) return res.json({ ok: false, message: 'Chave não configurada.' })
         const response = await fetch('https://api.bing.microsoft.com/v7.0/search?q=test&count=1', {
           headers: { 'Ocp-Apim-Subscription-Key': apiKey },
@@ -151,8 +146,7 @@ export async function testSetting(req, res, next) {
       }
 
       case 'GOOGLE_CSE_KEY': {
-        const apiKey = process.env.GOOGLE_CSE_KEY
-        const cx = process.env.GOOGLE_CSE_CX
+        const cx = await getEffectiveKey(req.user.id, 'GOOGLE_CSE_CX')
         if (!apiKey) return res.json({ ok: false, message: 'GOOGLE_CSE_KEY não configurada.' })
         if (!cx)     return res.json({ ok: false, message: 'GOOGLE_CSE_CX não configurada.' })
         const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=test&num=1`
@@ -170,18 +164,13 @@ export async function testSetting(req, res, next) {
   }
 }
 
-/** POST /settings/reveal — retorna o valor real de uma chave (exige senha) */
+/** POST /settings/reveal — retorna valor real de uma chave (própria ou fallback global) */
 export async function revealSetting(req, res, next) {
   try {
-    const { password, key } = req.body
-    if (!password) throw new AppError('Senha obrigatória.', 400)
-    const ok = await verifySettingsPassword(password)
-    if (!ok) throw new AppError('Senha incorreta.', 401)
+    const { key } = req.body
     if (!MANAGED_KEYS.includes(key)) throw new AppError('Chave não permitida.', 403)
 
-    // Busca do banco primeiro, depois process.env
-    const { rows } = await db.query('SELECT value FROM settings WHERE key = $1', [key])
-    const value = rows[0]?.value || process.env[key] || ''
+    const value = await getEffectiveKey(req.user.id, key)
     if (!value) return res.json({ ok: false, message: 'Chave não configurada.' })
 
     res.json({ ok: true, value })

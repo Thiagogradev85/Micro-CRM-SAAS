@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { UserPlus, Trash2, ShieldCheck, User, ToggleLeft, ToggleRight, Loader2, KeyRound, Bell, BellOff } from 'lucide-react'
+import { UserPlus, Trash2, ShieldCheck, User, ToggleLeft, ToggleRight, Loader2, KeyRound, Bell, BellOff, Building2, Pencil } from 'lucide-react'
 import { api } from '../utils/api.js'
 import { useAuth } from '../contexts/AuthContext.jsx'
 import { useModal } from '../hooks/useModal.js'
 
-const EMPTY_FORM = { nome: '', email: '', password: '', role: 'user' }
+const EMPTY_FORM = { nome: '', email: '', password: '', role: 'user', company_id: '', company_nome: '' }
 
 export function AdminUsersPage() {
   const { user: me, onlineUserIds, mutedUsers, toggleMute } = useAuth()
@@ -16,12 +16,16 @@ export function AdminUsersPage() {
   useEffect(() => {
     if (me && me.role !== 'admin') navigate('/', { replace: true })
   }, [me, navigate])
-  const [users, setUsers]      = useState([])
-  const [loading, setLoading]  = useState(true)
-  const [form, setForm]        = useState(EMPTY_FORM)
-  const [saving, setSaving]    = useState(false)
+  const [users, setUsers]         = useState([])
+  const [companies, setCompanies] = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [form, setForm]           = useState(EMPTY_FORM)
+  const [saving, setSaving]       = useState(false)
 
-  useEffect(() => { fetchUsers() }, [])
+  useEffect(() => {
+    fetchUsers()
+    api.listCompanies().then(setCompanies).catch(() => {})
+  }, [])
 
   async function fetchUsers() {
     setLoading(true)
@@ -82,6 +86,104 @@ export function AdminUsersPage() {
           try {
             await api.updateUser(user.id, { password: newPassword })
             showModal({ type: 'success', title: 'Senha alterada', message: `Senha de ${user.nome} atualizada.` })
+          } catch (err) {
+            showModal({ type: 'error', title: 'Erro', message: err.message })
+          }
+        },
+      }],
+    })
+  }
+
+  function handleEditUser(user) {
+    const fields = {
+      nome: user.nome,
+      email: user.email,
+      role: user.role,
+      company_id: user.company_id ? String(user.company_id) : '',
+      password: '',
+    }
+    showModal({
+      type: 'info',
+      title: `Editar usuário — ${user.nome}`,
+      message: (
+        <div className="mt-2 space-y-3">
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Nome</label>
+            <input
+              defaultValue={fields.nome}
+              onChange={e => { fields.nome = e.target.value }}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">E-mail</label>
+            <input
+              type="email"
+              defaultValue={fields.email}
+              onChange={e => { fields.email = e.target.value }}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Perfil</label>
+            <select
+              defaultValue={fields.role}
+              onChange={e => { fields.role = e.target.value }}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+            >
+              <option value="user">Usuário</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Empresa</label>
+            <select
+              defaultValue={fields.company_id}
+              onChange={e => { fields.company_id = e.target.value }}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+            >
+              <option value="">— Sem empresa —</option>
+              {companies.map(c => (
+                <option key={c.id} value={String(c.id)}>{c.nome}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-400 mb-1">Nova senha <span className="text-zinc-600">(deixe em branco para não alterar)</span></label>
+            <input
+              type="password"
+              minLength={6}
+              placeholder="Mínimo 6 caracteres"
+              onChange={e => { fields.password = e.target.value }}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-600 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <p className="text-xs text-zinc-500">Alterações de empresa e perfil requerem novo login.</p>
+        </div>
+      ),
+      actions: [{
+        label: 'Salvar',
+        variant: 'primary',
+        onClick: async () => {
+          if (!fields.nome.trim() || !fields.email.trim()) {
+            showModal({ type: 'error', title: 'Campos obrigatórios', message: 'Nome e e-mail são obrigatórios.' })
+            return
+          }
+          if (fields.password && fields.password.length < 6) {
+            showModal({ type: 'error', title: 'Senha inválida', message: 'A senha deve ter pelo menos 6 caracteres.' })
+            return
+          }
+          try {
+            const payload = {
+              nome: fields.nome.trim(),
+              email: fields.email.trim(),
+              role: fields.role,
+              company_id: fields.company_id ? parseInt(fields.company_id) : null,
+            }
+            if (fields.password) payload.password = fields.password
+            await api.updateUser(user.id, payload)
+            await fetchUsers()
+            showModal({ type: 'success', title: 'Usuário atualizado', message: `${fields.nome} foi salvo com sucesso.` })
           } catch (err) {
             showModal({ type: 'error', title: 'Erro', message: err.message })
           }
@@ -164,6 +266,29 @@ export function AdminUsersPage() {
               <option value="admin">Admin</option>
             </select>
           </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-xs text-zinc-400">Empresa</label>
+            <div className="flex gap-2">
+              <select
+                value={form.company_id}
+                onChange={e => setForm(f => ({ ...f, company_id: e.target.value, company_nome: '' }))}
+                className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">— Selecionar empresa existente —</option>
+                {companies.map(c => (
+                  <option key={c.id} value={c.id}>{c.nome}</option>
+                ))}
+              </select>
+              <span className="flex items-center text-xs text-zinc-500 px-1">ou</span>
+              <input
+                value={form.company_nome}
+                onChange={e => setForm(f => ({ ...f, company_nome: e.target.value, company_id: '' }))}
+                placeholder="Nova empresa…"
+                className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-600 focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+            <p className="mt-1 text-xs text-zinc-600">Escolha uma empresa existente ou digite o nome de uma nova.</p>
+          </div>
         </div>
         <div className="mt-4 flex justify-end">
           <button
@@ -209,6 +334,12 @@ export function AdminUsersPage() {
                   )}
                 </div>
                 <p className="text-xs text-zinc-500 truncate">{user.email}</p>
+                {user.company_nome && (
+                  <p className="flex items-center gap-1 text-xs text-zinc-600 truncate">
+                    <Building2 size={10} />
+                    {user.company_nome}
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-1">
                 {/* Silenciar notificação de presença — só para usuários não-admin */}
@@ -235,6 +366,13 @@ export function AdminUsersPage() {
                   className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30"
                 >
                   {user.ativo ? <ToggleRight size={16} className="text-green-400" /> : <ToggleLeft size={16} />}
+                </button>
+                <button
+                  onClick={() => handleEditUser(user)}
+                  title="Editar usuário"
+                  className="rounded p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-blue-400"
+                >
+                  <Pencil size={13} />
                 </button>
                 <button
                   onClick={() => handleResetPassword(user)}

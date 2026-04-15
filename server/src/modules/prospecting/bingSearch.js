@@ -18,8 +18,8 @@
 
 const BING_URL = 'https://api.bing.microsoft.com/v7.0/search'
 
-export async function searchWebBing(query) {
-  const key = process.env.BING_SEARCH_KEY
+export async function searchWebBing(query, apiKeys = {}) {
+  const key = apiKeys.BING_SEARCH_KEY ?? process.env.BING_SEARCH_KEY
   if (!key) return null  // não configurado
 
   const params = new URLSearchParams({ q: query, mkt: 'pt-BR', count: '10', safeSearch: 'Off' })

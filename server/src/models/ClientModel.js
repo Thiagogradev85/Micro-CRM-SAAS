@@ -2,12 +2,12 @@ import db from '../db/db.js'
 
 export const ClientModel = {
   // Retorna lista de UFs com contagem, respeitando os mesmos filtros do list()
-  async listUFs({ status_id, ativo, ja_cliente, catalogo_enviado, nao_tem_interesse, search, userId } = {}) {
+  async listUFs({ status_id, ativo, ja_cliente, catalogo_enviado, nao_tem_interesse, search, companyId } = {}) {
     const conditions = []
     const params = []
 
-    params.push(userId)
-    conditions.push(`c.user_id = $${params.length}`)
+    params.push(companyId)
+    conditions.push(`c.company_id = $${params.length}`)
 
     if (status_id) {
       params.push(status_id)
@@ -57,12 +57,12 @@ export const ClientModel = {
     return rows
   },
 
-  async list({ uf, status_id, ativo, ja_cliente, catalogo_enviado, nao_tem_interesse, search, page = 1, limit = 50, sort = 'created_at', userId } = {}) {
+  async list({ uf, status_id, ativo, ja_cliente, catalogo_enviado, nao_tem_interesse, search, page = 1, limit = 50, sort = 'created_at', companyId } = {}) {
     const conditions = []
     const params = []
 
-    params.push(userId)
-    conditions.push(`c.user_id = $${params.length}`)
+    params.push(companyId)
+    conditions.push(`c.company_id = $${params.length}`)
 
     if (uf) {
       // Aceita UF única ou array de UFs (ex: ['MT','MS','PR'])
@@ -155,7 +155,7 @@ export const ClientModel = {
     return { data: rows, total: parseInt(countRows[0].count) }
   },
 
-  async get(id, userId) {
+  async get(id, companyId) {
     const { rows } = await db.query(`
       SELECT
         c.*,
@@ -167,25 +167,25 @@ export const ClientModel = {
       LEFT JOIN status  s   ON s.id   = c.status_id
       LEFT JOIN catalogs  cat ON cat.id = c.catalog_id
       LEFT JOIN sellers   sel ON sel.id = c.seller_id
-      WHERE c.id = $1 AND c.user_id = $2
-    `, [id, userId])
+      WHERE c.id = $1 AND c.company_id = $2
+    `, [id, companyId])
     return rows[0] || null
   },
 
-  // Busca o seller_id responsável pelo UF informado (restrito ao usuário)
-  async findSellerByUF(uf, userId) {
+  // Busca o seller_id responsável pelo UF informado (restrito à empresa)
+  async findSellerByUF(uf, companyId) {
     if (!uf) return null
     const { rows } = await db.query(
       `SELECT su.seller_id FROM seller_ufs su
        JOIN sellers s ON s.id = su.seller_id
-       WHERE su.uf = $1 AND s.user_id = $2
+       WHERE su.uf = $1 AND s.company_id = $2
        LIMIT 1`,
-      [uf.toUpperCase(), userId]
+      [uf.toUpperCase(), companyId]
     )
     return rows[0]?.seller_id || null
   },
 
-  async create(data, userId) {
+  async create(data, companyId) {
     const s = (v) => v?.trim() || null
     const nom        = s(data.nome)
     const cidade     = s(data.cidade)
@@ -212,14 +212,14 @@ export const ClientModel = {
     let status_id = data.status_id || null
     if (!status_id) {
       const { rows: st } = await db.query(
-        `SELECT id FROM status WHERE nome = 'Prospecção' AND user_id = $1 LIMIT 1`,
-        [userId]
+        `SELECT id FROM status WHERE nome = 'Prospecção' AND company_id = $1 LIMIT 1`,
+        [companyId]
       )
       status_id = st[0]?.id || null
     }
 
     // Se seller_id não foi informado, atribui automaticamente pelo UF
-    const seller_id = data.seller_id || await this.findSellerByUF(uf, userId)
+    const seller_id = data.seller_id || await this.findSellerByUF(uf, companyId)
 
     // Sem WhatsApp e sem Instagram → nota 1 (Fraco) automaticamente
     const notaFinal = nota || (!whatsapp && !instagram ? 1 : null)
@@ -228,12 +228,12 @@ export const ClientModel = {
       INSERT INTO clients
         (nome, cidade, uf, whatsapp, telefone, site, email, instagram, facebook, twitter, linkedin,
          responsavel, logradouro, numero, complemento, bairro, cep, cnpj,
-         nota, status_id, catalog_id, seller_id, ja_cliente, user_id)
+         nota, status_id, catalog_id, seller_id, ja_cliente, company_id)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
       RETURNING *
     `, [nom, cidade, uf, whatsapp, telefone, site, email, instagram, facebook, twitter, linkedin,
         responsavel, logradouro, numero, complemento, bairro, cep, cnpj,
-        notaFinal, status_id, catalog_id, seller_id, data.ja_cliente ?? false, userId])
+        notaFinal, status_id, catalog_id, seller_id, data.ja_cliente ?? false, companyId])
 
     const client = rows[0]
 
@@ -248,7 +248,7 @@ export const ClientModel = {
     return client
   },
 
-  async update(id, data, userId) {
+  async update(id, data, companyId) {
     const {
       nome, cidade, uf, whatsapp, telefone, site, email, instagram, facebook, twitter, linkedin,
       responsavel, logradouro, numero, complemento, bairro, cep, cnpj,
@@ -257,7 +257,7 @@ export const ClientModel = {
     } = data
 
     // Verifica status anterior para disparar eventos (também serve para detectar se o cliente existe)
-    const previous = await this.get(id, userId)
+    const previous = await this.get(id, companyId)
     if (!previous) return null
 
     // Verificação de conflito em JS (evita problemas de precisão de microsegundos no SQL)
@@ -296,11 +296,11 @@ export const ClientModel = {
         catalogo_enviado  = COALESCE($26, catalogo_enviado),
         nao_tem_interesse = COALESCE($28, nao_tem_interesse),
         updated_at        = NOW()
-      WHERE id = $24 AND user_id = $27
+      WHERE id = $24 AND company_id = $27
       RETURNING *
     `, [nome, cidade, uf, whatsapp, telefone, site, email, instagram, facebook, twitter, linkedin,
         responsavel, logradouro, numero, complemento, bairro, cep, cnpj,
-        ativo, nota, status_id, catalog_id, seller_id, id, ja_cliente, catalogo_enviado, userId,
+        ativo, nota, status_id, catalog_id, seller_id, id, ja_cliente, catalogo_enviado, companyId,
         nao_tem_interesse ?? null])
 
     const updated = rows[0]
@@ -375,20 +375,20 @@ export const ClientModel = {
   },
 
   // Marca cliente como "Contatado" — atualiza status, ultimo_contato e registra evento
-  async markContacted(id, userId) {
+  async markContacted(id, companyId) {
     const { rows: statusRows } = await db.query(
-      `SELECT id FROM status WHERE nome = 'Contatado' AND user_id = $1 LIMIT 1`, [userId]
+      `SELECT id FROM status WHERE nome = 'Contatado' AND company_id = $1 LIMIT 1`, [companyId]
     )
     const statusId = statusRows[0]?.id
     if (statusId) {
       await db.query(
-        `UPDATE clients SET status_id = $1, ultimo_contato = NOW(), updated_at = NOW() WHERE id = $2 AND user_id = $3`,
-        [statusId, id, userId]
+        `UPDATE clients SET status_id = $1, ultimo_contato = NOW(), updated_at = NOW() WHERE id = $2 AND company_id = $3`,
+        [statusId, id, companyId]
       )
     } else {
       await db.query(
-        `UPDATE clients SET ultimo_contato = NOW(), updated_at = NOW() WHERE id = $1 AND user_id = $2`,
-        [id, userId]
+        `UPDATE clients SET ultimo_contato = NOW(), updated_at = NOW() WHERE id = $1 AND company_id = $2`,
+        [id, companyId]
       )
     }
     await db.query(
@@ -400,15 +400,15 @@ export const ClientModel = {
   },
 
   // Hard delete — remove permanentemente do banco
-  async destroy(id, userId) {
-    await db.query('DELETE FROM clients WHERE id = $1 AND user_id = $2', [id, userId])
+  async destroy(id, companyId) {
+    await db.query('DELETE FROM clients WHERE id = $1 AND company_id = $2', [id, companyId])
   },
 
   // Soft delete — apenas inativa o cliente
-  async deactivate(id, userId) {
+  async deactivate(id, companyId) {
     const { rows } = await db.query(
-      `UPDATE clients SET ativo = FALSE, updated_at = NOW() WHERE id = $1 AND user_id = $2 RETURNING *`,
-      [id, userId]
+      `UPDATE clients SET ativo = FALSE, updated_at = NOW() WHERE id = $1 AND company_id = $2 RETURNING *`,
+      [id, companyId]
     )
     return rows[0] || null
   },
@@ -459,13 +459,13 @@ export const ClientModel = {
   // Retorna clientes ativos que estão há mais de `days` dias sem contato.
   // Exclui clientes criados hoje ("Novos") e clientes com status que indicam
   // encerramento ou vínculo permanente (Fabricação Própria, Exclusividade).
-  async getOverdue(days = 3, userId) {
+  async getOverdue(days = 3, companyId) {
     const { rows } = await db.query(
       `SELECT c.id, c.nome, c.cidade, c.uf, c.whatsapp, c.ultimo_contato, c.status_id
        FROM clients c
        LEFT JOIN status s ON s.id = c.status_id
        WHERE c.ativo = true
-         AND c.user_id = $2
+         AND c.company_id = $2
          AND c.created_at::date < (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
          AND (
            s.nome IS NULL
@@ -478,19 +478,19 @@ export const ClientModel = {
            OR (c.ultimo_contato IS NULL AND c.created_at < NOW() - ($1 || ' days')::INTERVAL)
          )
        ORDER BY c.ultimo_contato ASC NULLS FIRST`,
-      [days, userId]
+      [days, companyId]
     )
     return rows
   },
 
   // Importação em lote (Excel) — cada registro usa o pool diretamente (sem transação global)
-  async bulkUpsert(records, userId) {
+  async bulkUpsert(records, companyId) {
     const results = { imported: 0, updated: 0, skipped: 0, errors: [] }
 
     // Busca o id de "Prospecção" uma vez para usar em todos os inserts
     const { rows: stRows } = await db.query(
-      `SELECT id FROM status WHERE nome = 'Prospecção' AND user_id = $1 LIMIT 1`,
-      [userId]
+      `SELECT id FROM status WHERE nome = 'Prospecção' AND company_id = $1 LIMIT 1`,
+      [companyId]
     )
     const prospeccaoId = stRows[0]?.id || null
 
@@ -501,10 +501,10 @@ export const ClientModel = {
           continue
         }
         const recUF = rec.uf ? rec.uf.toUpperCase() : null
-        // Tenta atualizar por whatsapp ou nome+uf (restrito ao usuário)
+        // Tenta atualizar por whatsapp ou nome+uf (restrito à empresa)
         const { rows: existing } = await db.query(
-          `SELECT id FROM clients WHERE user_id = $4 AND ((whatsapp = $1 AND $1 IS NOT NULL) OR (LOWER(nome) = LOWER($2) AND ($3 IS NULL OR uf = $3))) LIMIT 1`,
-          [rec.whatsapp || null, rec.nome, recUF, userId]
+          `SELECT id FROM clients WHERE company_id = $4 AND ((whatsapp = $1 AND $1 IS NOT NULL) OR (LOWER(nome) = LOWER($2) AND ($3 IS NULL OR uf = $3))) LIMIT 1`,
+          [rec.whatsapp || null, rec.nome, recUF, companyId]
         )
         if (existing.length > 0) {
           // Só preenche campos que estão vazios no banco — nunca sobrescreve dados existentes
@@ -522,13 +522,13 @@ export const ClientModel = {
           )
           results.updated++
         } else {
-          // Atribui vendedor automaticamente pelo UF (restrito ao usuário)
+          // Atribui vendedor automaticamente pelo UF (restrito à empresa)
           const { rows: sellerRows } = recUF ? await db.query(
             `SELECT su.seller_id FROM seller_ufs su
              JOIN sellers s ON s.id = su.seller_id
-             WHERE su.uf = $1 AND s.user_id = $2
+             WHERE su.uf = $1 AND s.company_id = $2
              LIMIT 1`,
-            [recUF, userId]
+            [recUF, companyId]
           ) : { rows: [] }
           const seller_id = sellerRows[0]?.seller_id || null
 
@@ -536,9 +536,9 @@ export const ClientModel = {
           const nota = (!rec.whatsapp && !rec.instagram) ? 1 : null
 
           const { rows: inserted } = await db.query(
-            `INSERT INTO clients (nome, cidade, uf, whatsapp, site, instagram, nota, seller_id, status_id, ja_cliente, user_id)
+            `INSERT INTO clients (nome, cidade, uf, whatsapp, site, instagram, nota, seller_id, status_id, ja_cliente, company_id)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
-            [rec.nome, rec.cidade, recUF, rec.whatsapp, rec.site, rec.instagram, nota, seller_id, prospeccaoId, false, userId]
+            [rec.nome, rec.cidade, recUF, rec.whatsapp, rec.site, rec.instagram, nota, seller_id, prospeccaoId, false, companyId]
           )
           await db.query(
             `INSERT INTO daily_report_events (client_id, event_type, event_date)
@@ -556,43 +556,43 @@ export const ClientModel = {
   },
 
   // Clientes importados sem UF — aguardando atribuição manual
-  async listPendingUF(userId) {
+  async listPendingUF(companyId) {
     const { rows } = await db.query(
       `SELECT c.id, c.nome, c.cidade, c.whatsapp, c.instagram, c.site, c.created_at
        FROM clients c
-       WHERE c.uf IS NULL AND c.ativo = true AND c.user_id = $1
+       WHERE c.uf IS NULL AND c.ativo = true AND c.company_id = $1
        ORDER BY c.created_at DESC`,
-      [userId]
+      [companyId]
     )
     return rows
   },
 
   // Atribui UF a um cliente sem UF e já tenta associar vendedor
-  async assignUF(id, uf, userId) {
+  async assignUF(id, uf, companyId) {
     const upperUF = uf.toUpperCase()
     // Busca vendedor responsável por essa UF
     const { rows: sellerRows } = await db.query(
       `SELECT su.seller_id FROM seller_ufs su
        JOIN sellers s ON s.id = su.seller_id
-       WHERE su.uf = $1 AND s.user_id = $2 AND s.ativo = true
+       WHERE su.uf = $1 AND s.company_id = $2 AND s.ativo = true
        LIMIT 1`,
-      [upperUF, userId]
+      [upperUF, companyId]
     )
     const seller_id = sellerRows[0]?.seller_id || null
     const { rows } = await db.query(
       `UPDATE clients SET uf = $1, seller_id = COALESCE(seller_id, $2), updated_at = NOW()
-       WHERE id = $3 AND user_id = $4 AND uf IS NULL
+       WHERE id = $3 AND company_id = $4 AND uf IS NULL
        RETURNING id, nome, cidade, uf, seller_id`,
-      [upperUF, seller_id, id, userId]
+      [upperUF, seller_id, id, companyId]
     )
     return rows[0] || null
   },
 
   // Tarefa diária: associa vendedores a clientes que têm UF mas seller_id nulo
-  async bulkAssignSellers(userId = null) {
-    // Se userId for null, roda para todos os usuários
-    const params = userId ? [userId] : []
-    const userFilter = userId ? 'AND c.user_id = $1' : ''
+  async bulkAssignSellers(companyId = null) {
+    // Se companyId for null, roda para todas as empresas
+    const params = companyId ? [companyId] : []
+    const companyFilter = companyId ? 'AND c.company_id = $1' : ''
     const { rowCount } = await db.query(
       `UPDATE clients c
        SET seller_id = su.seller_id, updated_at = NOW()
@@ -602,8 +602,8 @@ export const ClientModel = {
          AND c.seller_id IS NULL
          AND c.ativo = true
          AND su.uf = c.uf
-         AND s.user_id = c.user_id
-         ${userFilter}`,
+         AND s.company_id = c.company_id
+         ${companyFilter}`,
       params
     )
     return rowCount

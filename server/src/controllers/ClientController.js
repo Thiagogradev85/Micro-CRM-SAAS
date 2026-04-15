@@ -37,7 +37,7 @@ export const ClientController = {
         catalogo_enviado: catalogo_enviado !== undefined && catalogo_enviado !== '' ? catalogo_enviado === 'true' : undefined,
         nao_tem_interesse: nao_tem_interesse !== undefined && nao_tem_interesse !== '' ? nao_tem_interesse === 'true' : undefined,
         search,
-        userId: req.user.id,
+        companyId: req.user.company_id,
       })
       res.json(data)
     } catch (err) {
@@ -59,7 +59,7 @@ export const ClientController = {
         page: page ? parseInt(page) : 1,
         limit: limit ? parseInt(limit) : 50,
         sort: sort || 'created_at',
-        userId: req.user.id,
+        companyId: req.user.company_id,
       })
       res.json(result)
     } catch (err) {
@@ -69,7 +69,7 @@ export const ClientController = {
 
   async get(req, res, next) {
     try {
-      const data = await ClientModel.get(req.params.id, req.user.id)
+      const data = await ClientModel.get(req.params.id, req.user.company_id)
       if (!data) throw new AppError('Cliente não encontrado', 404)
       res.json(data)
     } catch (err) {
@@ -82,7 +82,7 @@ export const ClientController = {
       const { nome, uf } = req.body
       if (!nome?.trim()) throw new AppError('Nome é obrigatório.', 422)
       if (!uf?.trim())   throw new AppError('UF é obrigatória.', 422)
-      const data = await ClientModel.create(req.body, req.user.id)
+      const data = await ClientModel.create(req.body, req.user.company_id)
       res.status(201).json(data)
     } catch (err) {
       if (err.code === '23505') return next(new AppError('Já existe um cliente com este nome neste estado (UF).', 409))
@@ -95,7 +95,7 @@ export const ClientController = {
       const { nome, uf } = req.body
       if (nome !== undefined && !nome?.trim()) throw new AppError('Nome é obrigatório.', 422)
       if (uf   !== undefined && !uf?.trim())   throw new AppError('UF é obrigatória.', 422)
-      const data = await ClientModel.update(req.params.id, req.body, req.user.id)
+      const data = await ClientModel.update(req.params.id, req.body, req.user.company_id)
       if (data === 'CONFLICT') throw new AppError('Este cliente foi alterado em outra aba ou sessão. Recarregue antes de salvar.', 409)
       if (!data) throw new AppError('Cliente não encontrado', 404)
       res.json(data)
@@ -108,10 +108,10 @@ export const ClientController = {
   async delete(req, res, next) {
     try {
       if (req.query.permanent === 'true') {
-        await ClientModel.destroy(req.params.id, req.user.id)
+        await ClientModel.destroy(req.params.id, req.user.company_id)
         return res.json({ message: 'Cliente excluído permanentemente' })
       }
-      const data = await ClientModel.deactivate(req.params.id, req.user.id)
+      const data = await ClientModel.deactivate(req.params.id, req.user.company_id)
       if (!data) throw new AppError('Cliente não encontrado', 404)
       res.json({ message: 'Cliente inativado com sucesso', client: data })
     } catch (err) {
@@ -174,7 +174,7 @@ export const ClientController = {
         limit: 9999,
         page: 1,
         sort: 'uf',
-        userId: req.user.id,
+        companyId: req.user.company_id,
       })
       const clients = result.data
 
@@ -199,7 +199,7 @@ export const ClientController = {
     try {
       const fileBuffer = await readFileFromRequest(req)
       const { records, rejected } = await importExcel(fileBuffer)
-      const result = await ClientModel.bulkUpsert(records, req.user.id)
+      const result = await ClientModel.bulkUpsert(records, req.user.company_id)
       res.json({ ...result, rejected: rejected || [] })
     } catch (err) {
       next(err)
@@ -209,7 +209,7 @@ export const ClientController = {
   // Clientes importados sem UF
   async listPendingUF(req, res, next) {
     try {
-      const data = await ClientModel.listPendingUF(req.user.id)
+      const data = await ClientModel.listPendingUF(req.user.company_id)
       res.json(data)
     } catch (err) { next(err) }
   },
@@ -219,7 +219,7 @@ export const ClientController = {
     try {
       const { uf } = req.body
       if (!uf?.trim()) throw new AppError('UF é obrigatória.', 422)
-      const data = await ClientModel.assignUF(req.params.id, uf, req.user.id)
+      const data = await ClientModel.assignUF(req.params.id, uf, req.user.company_id)
       if (!data) throw new AppError('Cliente não encontrado ou UF já atribuída.', 404)
       res.json(data)
     } catch (err) { next(err) }
@@ -230,7 +230,7 @@ export const ClientController = {
   async getOverdue(req, res, next) {
     try {
       const days = parseInt(req.query.days) || 3
-      const clients = await ClientModel.getOverdue(days, req.user.id)
+      const clients = await ClientModel.getOverdue(days, req.user.company_id)
       res.json(clients)
     } catch (err) {
       next(err)
@@ -242,7 +242,7 @@ export const ClientController = {
   // similar ou telefone igual.
   async findDuplicates(req, res, next) {
     try {
-      const result = await ClientModel.list({ ativo: 'true', limit: 9999, page: 1, userId: req.user.id })
+      const result = await ClientModel.list({ ativo: 'true', limit: 9999, page: 1, companyId: req.user.company_id })
       const clients = result.data
 
       const visited = new Set()

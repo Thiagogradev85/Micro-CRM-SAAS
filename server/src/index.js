@@ -22,6 +22,7 @@ import emailRoutes       from './routes/email.js'
 import prospectingRoutes from './routes/prospecting.js'
 import settingsRoutes    from './routes/settings.js'
 import authRoutes        from './routes/auth.js'
+import companyRoutes     from './routes/companies.js'
 import { AppError }      from './utils/AppError.js'
 import db                from './db/db.js'
 import { ClientModel }   from './models/ClientModel.js'
@@ -41,7 +42,7 @@ async function resetContatadoParaProspeccao({ apenasAnteriores = false } = {}) {
 
     const { rowCount } = await db.query(`
       UPDATE clients c
-      SET status_id  = (SELECT id FROM status WHERE nome = 'Prospecção' AND user_id = c.user_id LIMIT 1),
+      SET status_id  = (SELECT id FROM status WHERE nome = 'Prospecção' AND company_id = c.company_id LIMIT 1),
           updated_at = NOW()
       WHERE status_id IN (SELECT id FROM status WHERE nome = 'Contatado')
         AND ativo = true
@@ -59,7 +60,7 @@ async function resetNaoTemInteresse() {
   try {
     const { rowCount } = await db.query(`
       UPDATE clients c
-      SET status_id         = (SELECT id FROM status WHERE nome = 'Prospecção' AND user_id = c.user_id LIMIT 1),
+      SET status_id         = (SELECT id FROM status WHERE nome = 'Prospecção' AND company_id = c.company_id LIMIT 1),
           interesse_reset_at = NULL,
           updated_at         = NOW()
       WHERE status_id IN (SELECT id FROM status WHERE nome = 'Não Tem Interesse')
@@ -133,6 +134,7 @@ app.use('/api/whatsapp',     whatsappRoutes)
 app.use('/api/email',        emailRoutes)
 app.use('/api/prospecting',  prospectingRoutes)
 app.use('/api/settings',     settingsRoutes)
+app.use('/api/companies',    companyRoutes)
 
 // ── Health check ───────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date() }))

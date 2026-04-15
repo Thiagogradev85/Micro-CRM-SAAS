@@ -16,8 +16,8 @@ const SERPAPI_URL = 'https://serpapi.com/search.json'
 
 // ── Busca web (Enriquecimento) ─────────────────────────────────────────────────
 
-export async function searchWebSerpApi(query) {
-  const key = process.env.SERPAPI_KEY
+export async function searchWebSerpApi(query, apiKeys = {}) {
+  const key = apiKeys.SERPAPI_KEY ?? process.env.SERPAPI_KEY
   if (!key) return null
 
   const params = new URLSearchParams({
@@ -69,8 +69,8 @@ export async function searchWebSerpApi(query) {
  *
  * Retorna null se não configurado ou se ocorrer erro.
  */
-export async function searchMapsSerpApi(query) {
-  const key = process.env.SERPAPI_KEY
+export async function searchMapsSerpApi(query, apiKeys = {}) {
+  const key = apiKeys.SERPAPI_KEY ?? process.env.SERPAPI_KEY
   if (!key) return null
 
   const params = new URLSearchParams({

@@ -2,17 +2,18 @@ import { CatalogModel } from '../models/CatalogModel.js'
 import { ProductModel } from '../models/ProductModel.js'
 import { importCatalogPdf } from '../modules/ai-import/index.js'
 import { AppError } from '../utils/AppError.js'
+import { getEffectiveKeys } from '../config/configService.js'
 
 export const CatalogController = {
   async list(req, res, next) {
     try {
-      res.json(await CatalogModel.list(req.user.id))
+      res.json(await CatalogModel.list(req.user.company_id))
     } catch (err) { next(err) }
   },
 
   async get(req, res, next) {
     try {
-      const catalog = await CatalogModel.get(req.params.id, req.user.id)
+      const catalog = await CatalogModel.get(req.params.id, req.user.company_id)
       if (!catalog) throw new AppError('Catálogo não encontrado', 404)
       const products = await ProductModel.listByCatalog(req.params.id)
       res.json({ ...catalog, products })
@@ -21,13 +22,13 @@ export const CatalogController = {
 
   async create(req, res, next) {
     try {
-      res.status(201).json(await CatalogModel.create(req.body, req.user.id))
+      res.status(201).json(await CatalogModel.create(req.body, req.user.company_id))
     } catch (err) { next(err) }
   },
 
   async update(req, res, next) {
     try {
-      const data = await CatalogModel.update(req.params.id, req.body, req.user.id)
+      const data = await CatalogModel.update(req.params.id, req.body, req.user.company_id)
       if (!data) throw new AppError('Catálogo não encontrado', 404)
       res.json(data)
     } catch (err) { next(err) }
@@ -35,7 +36,7 @@ export const CatalogController = {
 
   async delete(req, res, next) {
     try {
-      await CatalogModel.delete(req.params.id, req.user.id)
+      await CatalogModel.delete(req.params.id, req.user.company_id)
       res.status(204).end()
     } catch (err) { next(err) }
   },
@@ -81,7 +82,7 @@ export const CatalogController = {
 
   async catalogPdf(req, res, next) {
     try {
-      const catalog = await CatalogModel.get(req.params.id, req.user.id)
+      const catalog = await CatalogModel.get(req.params.id, req.user.company_id)
       if (!catalog) throw new AppError('Catálogo não encontrado', 404)
       const products = await ProductModel.listByCatalog(req.params.id)
       const { generateCatalogPdf } = await import('../modules/file-export/index.js')
@@ -119,7 +120,8 @@ export const CatalogController = {
   async importPdf(req, res, next) {
     try {
       if (!req.file) throw new AppError('Arquivo PDF não enviado', 400)
-      const products = await importCatalogPdf(req.file.buffer)
+      const apiKeys = await getEffectiveKeys(req.user.id)
+      const products = await importCatalogPdf(req.file.buffer, apiKeys)
       if (products.length === 0) {
         throw new AppError(
           'Nenhum produto encontrado no PDF. Verifique se o arquivo contém texto selecionável (não é uma imagem escaneada) e se os produtos possuem campos como Motor, Bateria ou Velocidade.',

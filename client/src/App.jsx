@@ -16,6 +16,7 @@ import { ProspectingPage }   from './pages/ProspectingPage.jsx'
 import { EnrichPage }        from './pages/EnrichPage.jsx'
 import { SettingsPage }      from './pages/SettingsPage.jsx'
 import { AdminUsersPage }    from './pages/AdminUsersPage.jsx'
+import { AdminCompaniesPage } from './pages/AdminCompaniesPage.jsx'
 
 function AppLayout({ children }) {
   return (
@@ -53,7 +54,8 @@ export default function App() {
                     <Route path="/prospecting"  element={<ProspectingPage />} />
                     <Route path="/enrich"       element={<EnrichPage />} />
                     <Route path="/settings"     element={<SettingsPage />} />
-                    <Route path="/admin/users"  element={<AdminUsersPage />} />
+                    <Route path="/admin/users"     element={<AdminUsersPage />} />
+                    <Route path="/admin/companies" element={<AdminCompaniesPage />} />
                   </Routes>
                 </AppLayout>
               </ProtectedRoute>

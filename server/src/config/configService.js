@@ -1,17 +1,16 @@
 /**
  * ConfigService
- * Carrega configurações do banco (tabela settings) e aplica em process.env.
- * Isso permite configurar chaves de API via UI sem precisar do painel do Render.
+ * Gerencia chaves de API com dois níveis:
+ *   1. user_settings (por usuário) — override individual
+ *   2. settings (global/admin) — padrão da plataforma
+ *   3. process.env — fallback final (Render / .env)
  *
- * Prioridade: banco de dados (UI settings) > process.env (Render env vars)
- * Ou seja: se uma chave foi salva pela UI, ela sobrescreve a env var do Render
- * e persiste entre restarts — sem precisar mudar variáveis no painel do Render.
- * Se não houver valor no banco, o valor de process.env é mantido como fallback.
+ * Prioridade: user_settings > settings (global) > process.env
  */
 
 import db from '../db/db.js'
 
-// Chaves que podem ser gerenciadas via UI
+// Chaves visíveis e editáveis por qualquer usuário (próprias + fallback global)
 export const MANAGED_KEYS = [
   'ANTHROPIC_API_KEY',
   'SERPER_API_KEY',
@@ -21,12 +20,14 @@ export const MANAGED_KEYS = [
   'BRAVE_SEARCH_KEY',
   'BING_SEARCH_KEY',
   'ENRICH_SEGMENT',
-  'SETTINGS_PASSWORD',
 ]
 
+// Chaves exclusivamente globais — só o admin vê e edita
+export const ADMIN_ONLY_KEYS = ['DATABASE_URL']
+
 /**
- * Executa na inicialização do servidor.
- * Para cada chave gerenciável, se ela não estiver em process.env, busca do banco.
+ * Executa na inicialização: carrega settings globais em process.env.
+ * (Valores por usuário são resolvidos em tempo de request — não vão pro process.env)
  */
 export async function loadConfigFromDb() {
   try {
@@ -36,23 +37,62 @@ export async function loadConfigFromDb() {
     )
     let loaded = 0
     for (const { key, value } of rows) {
-      // Banco sempre tem prioridade sobre env var do Render para chaves gerenciadas.
-      // Isso garante que salvar pela UI de Configurações persiste entre restarts.
       if (value) {
         process.env[key] = value
         loaded++
       }
     }
     if (loaded > 0) {
-      console.log(`[ConfigService] ${loaded} chave(s) carregada(s) do banco (sobrescreve env vars).`)
+      console.log(`[ConfigService] ${loaded} chave(s) global(is) carregada(s) do banco.`)
     }
   } catch (err) {
-    // Banco pode não ter a tabela ainda (primeira execução antes da migration)
     console.warn('[ConfigService] Aviso ao carregar config do banco:', err.message)
   }
 }
 
-/** Salva ou atualiza um valor no banco E em process.env imediatamente. */
+/**
+ * Retorna o valor efetivo de uma chave para um usuário específico.
+ * Ordem: user_settings[userId] → settings (global) → process.env
+ */
+export async function getEffectiveKey(userId, key) {
+  // 1. Tenta setting do próprio usuário
+  if (userId) {
+    const { rows } = await db.query(
+      `SELECT value FROM user_settings WHERE user_id = $1 AND key = $2`,
+      [userId, key]
+    )
+    if (rows[0]?.value) return rows[0].value
+  }
+
+  // 2. Fallback para global (admin)
+  const { rows: globalRows } = await db.query(
+    `SELECT value FROM settings WHERE key = $1`,
+    [key]
+  )
+  if (globalRows[0]?.value) return globalRows[0].value
+
+  // 3. Fallback para process.env
+  return process.env[key] || ''
+}
+
+/**
+ * Retorna um objeto com todas as chaves efetivas para o usuário.
+ * Conveniente para passar de uma vez aos módulos de prospecção.
+ */
+export async function getEffectiveKeys(userId) {
+  const result = {}
+  await Promise.all(
+    MANAGED_KEYS.map(async key => {
+      result[key] = await getEffectiveKey(userId, key)
+    })
+  )
+  return result
+}
+
+/**
+ * Salva ou atualiza uma chave global (admin).
+ * Também aplica imediatamente em process.env.
+ */
 export async function setConfig(key, value) {
   const trimmed = value ? String(value).trim() : ''
   await db.query(
@@ -61,40 +101,77 @@ export async function setConfig(key, value) {
      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
     [key, trimmed]
   )
-  // Atualiza process.env se há valor novo.
-  // Ao limpar (valor vazio), NÃO deleta process.env para preservar variáveis
-  // que vieram do Render ou do arquivo .env — elas continuam ativas.
-  if (trimmed) {
-    process.env[key] = trimmed
+  if (trimmed) process.env[key] = trimmed
+}
+
+/**
+ * Salva ou atualiza uma chave do usuário em user_settings.
+ * Valor vazio = deleta o override (volta ao global).
+ */
+export async function setUserConfig(userId, key, value) {
+  const trimmed = value ? String(value).trim() : ''
+  if (!trimmed) {
+    await db.query(
+      `DELETE FROM user_settings WHERE user_id = $1 AND key = $2`,
+      [userId, key]
+    )
+  } else {
+    await db.query(
+      `INSERT INTO user_settings (user_id, key, value, updated_at)
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT (user_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [userId, key, trimmed]
+    )
   }
 }
 
-/** Retorna todos os valores gerenciados (mascarando secrets). */
-export async function getAllConfig() {
-  const { rows } = await db.query(`SELECT key, value, updated_at FROM settings`)
-  const map = Object.fromEntries(rows.map(r => [r.key, { value: r.value, updated_at: r.updated_at }]))
+/**
+ * Retorna configurações mascaradas para a UI.
+ * Admin: vê globais + próprios overrides.
+ * Usuário: vê seus overrides + indica se há fallback global disponível.
+ */
+export async function getUserConfig(userId, isAdmin = false) {
+  // Admin vê chaves gerais + exclusivas de admin
+  const keysToShow = isAdmin ? [...MANAGED_KEYS, ...ADMIN_ONLY_KEYS] : MANAGED_KEYS
 
-  return MANAGED_KEYS.map(key => {
-    const fromDb = map[key]
-    const fromEnv = process.env[key]
-    // Banco tem prioridade: rawValue é o que está efetivamente em process.env agora
-    const rawValue = fromDb?.value || fromEnv || ''
+  // Busca settings globais
+  const { rows: globalRows } = await db.query(
+    `SELECT key, value, updated_at FROM settings WHERE key = ANY($1)`,
+    [keysToShow]
+  )
+  const globalMap = Object.fromEntries(globalRows.map(r => [r.key, r]))
+
+  // Busca settings do usuário
+  const { rows: userRows } = await db.query(
+    `SELECT key, value, updated_at FROM user_settings WHERE user_id = $1 AND key = ANY($2)`,
+    [userId, MANAGED_KEYS]
+  )
+  const userMap = Object.fromEntries(userRows.map(r => [r.key, r]))
+
+  return keysToShow.map(key => {
+    const isAdminOnly = ADMIN_ONLY_KEYS.includes(key)
+    const userEntry   = isAdminOnly ? null : userMap[key]
+    const globalEntry = globalMap[key]
+    const envValue    = process.env[key] || ''
+
+    const userValue   = userEntry?.value || ''
+    const globalValue = globalEntry?.value || envValue
+
+    const effective = userValue || globalValue
+
     return {
       key,
-      configured: !!rawValue,
-      // Mascara o valor: mostra os primeiros 4 chars + ***
-      masked: rawValue ? rawValue.slice(0, 4) + '•••••••••••' : '',
-      source: fromDb?.value ? 'db' : fromEnv ? 'env' : 'none',
-      updated_at: fromDb?.updated_at ?? null,
+      configured:        !!effective,
+      masked:            effective ? effective.slice(0, 4) + '•••••••••••' : '',
+      source:            userValue ? 'user' : globalValue ? 'global' : 'none',
+      hasGlobalFallback: !userValue && !!globalValue,
+      adminOnly:         isAdminOnly,
+      updated_at:        userEntry?.updated_at ?? globalEntry?.updated_at ?? null,
     }
   })
 }
 
-/** Verifica a senha de admin para acesso às configurações. */
-export async function verifySettingsPassword(password) {
-  const { rows } = await db.query(
-    `SELECT value FROM settings WHERE key = 'SETTINGS_PASSWORD'`
-  )
-  const stored = rows[0]?.value ?? 'admin1234'
-  return password === stored
+/** Retorna configurações globais mascaradas (admin view). */
+export async function getAllConfig() {
+  return getUserConfig(null, true)
 }
