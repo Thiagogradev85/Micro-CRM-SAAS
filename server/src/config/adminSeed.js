@@ -32,6 +32,15 @@ export async function seedAdmin() {
       console.log(`[AdminSeed] Admin criado: ${DEFAULT_EMAIL} (id=${adminId})`)
     } else {
       adminId = rows[0].id
+      // Atualiza senha e email se ADMIN_PASSWORD estiver definida no env
+      if (process.env.ADMIN_PASSWORD) {
+        const hash = await hashPassword(DEFAULT_PASSWORD)
+        await db.query(
+          `UPDATE users SET password_hash = $1, email = $2, nome = $3 WHERE id = $4`,
+          [hash, DEFAULT_EMAIL, DEFAULT_NOME, adminId]
+        )
+        console.log(`[AdminSeed] Senha/email do admin sincronizados com env vars`)
+      }
     }
 
     // Migra dados existentes sem user_id para o admin
